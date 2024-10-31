@@ -12,13 +12,13 @@ typedef struct {
     
 } InputDataPXgICalc; //Inputs that are needed calculate P(X/I)
 
-void loadCSVToVector(vector<unsigned int> *vectorOut, String path);
+void loadCSVToVector(vector<unsigned int> *vectorOut, string path);
 
-void loadCSVToVector(vector<float> *vectorOut, String path);
+void loadCSVToVector(vector<float> *vectorOut, string path);
 
-void loadExampleInput(InputDataPXgICalc &dataInput, String folder_path);
+void loadExampleInput(InputDataPXgICalc &dataInput, string folder_path);
 
-void saveVectorToCSV(vector<float> *vectorOut, String path);
+void saveVectorToCSV(vector<float> *vectorOut, string path);
 
 
 #endif

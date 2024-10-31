@@ -5,7 +5,7 @@
 
 using namespace std;
 
-void loadCSVToVector(vector<unsigned int> *vectorOut, String path);
+void loadCSVToVector(vector<unsigned int> *vectorOut, string path)
 {
     fstream dataCsv(path, ios::in);
 	string auxLine;
@@ -27,7 +27,7 @@ void loadCSVToVector(vector<unsigned int> *vectorOut, String path);
 	}
 }
 
-void loadCSVToVector(vector<float> *vectorOut, String path);
+void loadCSVToVector(vector<float> *vectorOut, string path)
 {
     fstream dataCsv(path, ios::in);
 	string auxLine;
@@ -48,9 +48,8 @@ void loadCSVToVector(vector<float> *vectorOut, String path);
 		dataCsv.close();
 	}
 }
-}
 
-void loadExampleInput(InputDataPXgICalc &dataInput, String folder_path);
+void loadExampleInput(InputDataPXgICalc &dataInput, string folder_path)
 {
     vector<string> var_names = { "n_fe_per_I.csv", "p_fe_for_I_all.csv", "p_fe_for_I_iz_fe_all.csv","top_n_flu_iz.csv","top_n_flu_scores.csv" };
     loadCSVToVector(&dataInput.NFexpForI, folder_path+var_names[0]);
@@ -60,13 +59,13 @@ void loadExampleInput(InputDataPXgICalc &dataInput, String folder_path);
     loadCSVToVector(&dataInput.TopNFluExpScores, folder_path+var_names[4]);
 }
 
-void saveVectorToCSV(vector<float> *vectorOut, String path)
+void saveVectorToCSV(vector<float> *vectorOut, string path)
 {
     std::ofstream myFile(path);
     
     // Send data to the stream
     for(int i = 0; i < vectorOut->size(); i++)
-        myFile << vectorOut[i] << ",";
+        myFile << to_string((*vectorOut)[i]) << ",";
     
     // Close the file
     myFile.close();
