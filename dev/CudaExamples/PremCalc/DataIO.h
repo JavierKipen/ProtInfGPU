@@ -8,7 +8,7 @@ using namespace std;
 
 typedef struct {
     vector<unsigned int> NFexpForI,FexpIdForI,TopNFluExpId;
-	vector<float> PFexpForI,TopNFluExpScores;
+	vector<float> PFexpForI,TopNFluExpScores,TruePXgivIrel;
     
 } InputDataPXgICalc; //Inputs that are needed calculate P(X/I)
 
