@@ -18,7 +18,7 @@ class DataManager {  //Class to handle the data movement (later would be also bi
         void freeData(DeviceDataPXgICalc *pdevData, DeviceDataPXgICalc *d_pdevData);
         
             
-        InputDataPXgICalc InputData; //Data that will be loaded from the experiments.
+        InputData inputData; //Data that will be loaded from the experiments.
         unsigned int n_prot,n_reads,n_sparsity,n_flu_exp,n_reads_max,onesVecLen;
     private:
         void createOnesVec(DeviceDataPXgICalc *pdevData);

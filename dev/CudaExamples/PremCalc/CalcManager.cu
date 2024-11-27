@@ -5,6 +5,7 @@ using namespace std;
 
 __global__ void PIgXRelThreadPerRead(DeviceDataPXgICalc *d_devData);
 __global__ void PIgXRelThreadPerReadPerProt(DeviceDataPXgICalc *d_devData);
+__global__ void invertVect(float * vec,unsigned int len);
 
 //Kernel definitions
 __global__ void PIgXRelThreadPerRead(DeviceDataPXgICalc *d_devData)
@@ -34,6 +35,14 @@ __global__ void PIgXRelThreadPerRead(DeviceDataPXgICalc *d_devData)
             FluExpIdOffset+=d_devData->d_NFexpForI[currProt]; //Offset to get P(Fe|I=Currprot) and its indexes;
         }
     }
+}
+
+__global__ void invertVect(float * vec,unsigned int len){
+    int tid = blockDim.x * blockIdx.x + threadIdx.x; //thread id;
+
+    /* if valid, squre the array element */
+    if (tid < len) 
+        vec[tid] = (1/vec[tid]);
 }
 
 __global__ void PIgXRelThreadPerReadPerProt(DeviceDataPXgICalc *d_devData)
@@ -86,24 +95,108 @@ void CalcManager::setData(DeviceDataPXgICalc *devData,DeviceDataPXgICalc *d_devD
     this->d_devData=d_devData;
 }
 
-void CalcManager::processReads() //Whenever data is ready, this process is run to process the data contribution.
+void CalcManager::processReads(float * outUpdateArray) //Whenever data is ready, this process is run to process the data contribution.
 {
     calcPRem(); //Gets normalization factor of sparse matrix
-    calcPXgIRel(); //PXgIRel is obtained (eta(xi,j)).
-    calcPXgI(); //The relative matrix is normalized
-    calcAlphas(); //Multiplies the normalized matrix with the estimated prot probabilities
-    sumAlphas(); //Gets the weight update for the given data.
+    calcPXgIRel(); //PXgIRel is obtained
+    calcPXIRel(); //The joint relative matrix is normalized
+    PXIRelSumRows(); //The sums over the the rows are calculated for normalization and alpha calc.
+    calcAlphas(); //Multiplies the normalized matrix with the 1/sum for normalizations
+    sumAlphas(); //Sums all alphas through reads for the updates to p_I estimation!
+    retrieveUpdate(outUpdateArray);
+}
+void CalcManager::retrieveUpdate(float * outUpdateArray)
+{
+    cudaMemcpy(outUpdateArray, devData->d_VecAux, sizeof(float)*devData->n_prot, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
 }
 void CalcManager::sumAlphas()
 {
+
+    float alpha,beta;
+    unsigned int m,n;
+    cublasOperation_t trans;
+    
+    //Parameters fixing
+    alpha=1;beta=0; 
+    trans=CUBLAS_OP_N; //Transpose  
+    m=devData->n_prot; //Cublas uses column-major notation, so we using this notation we can do our original operation
+    n=devData->n_reads;
+    
+    
+
+    cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+                                m, n,
+                                &alpha,
+                                devData->d_MatAux, m, 
+                                devData->d_ones, 1,
+                                &beta,
+                                devData->d_VecAux, 1);
+
 }
 void CalcManager::calcAlphas()
 {
+    int m,n;
+    cublasSideMode_t mode;
+    
+    mode=CUBLAS_SIDE_RIGHT;
+    m = devData->n_prot; //Cublas uses column-major notation, so we using this notation we can do our original operation
+    n = devData->n_reads;
+    
+    cuBlasStatus = cublasSdgmm(cuBlasHandle, mode,
+                m, n,
+                devData->d_MatAux, m,
+                devData->d_VecAux, 1,
+                devData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
 }
+
+void CalcManager::PXIRelSumRows()
+{
+    float alpha,beta;
+    unsigned int m,n;
+    cublasOperation_t trans;
+    
+    //Parameters fixing
+    alpha=1.0f;beta=0; 
+    trans=CUBLAS_OP_T; //Transpose  
+    m=devData->n_prot; //Cublas uses column-major notation, so we using this notation we can do our original operation
+    n=devData->n_reads;
+    
+    
+
+    cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+                                m, n,
+                                &alpha,
+                                devData->d_MatAux, m, 
+                                devData->d_ones, 1,
+                                &beta,
+                                devData->d_VecAux, 1);
+    //Since we need 1/sum, we now invert the obtained vector with a custom kernel:
+    unsigned int n_threads = devData->n_reads;
+    unsigned int n_blocks = (n_threads/NThreadsPerBlock)+1;
+    invertVect<<<n_blocks,NThreadsPerBlock>>>(devData->d_VecAux,devData->n_reads);
+    cudaDeviceSynchronize();
+}
+
+void CalcManager::calcPXIRel()
+{
+    int m,n;
+    cublasSideMode_t mode;
+    
+    mode=CUBLAS_SIDE_LEFT;
+    m = devData->n_prot;
+    n = devData->n_reads;
+    
+    cuBlasStatus = cublasSdgmm(cuBlasHandle, mode,
+                m, n,
+                devData->d_MatAux, m,
+                devData->d_PIEst, 1,
+                devData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
+}
+
 
 void CalcManager::calcPXgIRel() //Assumes P_rem already calculated.
 { 
-/*
+/* //Version with only a thread per read (I think is less efficient than the 2nd one!).
     unsigned int n_blocks= (devData->n_reads/NThreadsPerBlock)+1;
     PIgXRelThreadPerRead<<<n_blocks,NThreadsPerBlock>>>(d_devData);
     */
@@ -114,11 +207,6 @@ void CalcManager::calcPXgIRel() //Assumes P_rem already calculated.
     cudaDeviceSynchronize();
 }
 
-
-void CalcManager::calcPXgI()
-{
- 
-}
 
 
 void CalcManager::calcPRem()

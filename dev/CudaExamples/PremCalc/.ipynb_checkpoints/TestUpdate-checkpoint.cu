@@ -13,25 +13,16 @@ int main()
     DeviceDataPXgICalc pdevData, *d_pdevData; //Data for calculations. pdevData in host, the other is initialized in device!
     DataManager DM;
     DM.loadDataFromCSV("/home/jkipen/ProtInfGPU/dev/P_X_giv_I_rel_w_GPU/RepVars/"); //Loads the test data
+    vector<float> updateVals(DM.n_prot, 0);
     CalcManager CM;
     DM.dataToGPU(&pdevData,&d_pdevData); //Copies input data to GPU and allocates for internal variables 
     CM.setData(&pdevData,d_pdevData);
-    auto t1 = chrono::high_resolution_clock::now();
-    for(unsigned int i=0;i<10;i++)
-    {
-        CM.calcPRem();
-        CM.calcPXgIRel();
-    }
-    auto t2 = chrono::high_resolution_clock::now();
-    chrono::duration<double, std::milli> ms_double = t2 - t1;
-    cout << "The time to run 10 PXGIREL was " << ms_double.count()<< "ms " << endl;
-    vector<float> calcPXgIRel(DM.n_reads*DM.n_prot, 0);
-    cudaMemcpy(calcPXgIRel.data(), pdevData.d_MatAux, sizeof(float)*DM.n_reads*DM.n_prot, cudaMemcpyDeviceToHost);
-    cout<< "Calculated in GPU: " << endl;
-    print2Darray(calcPXgIRel.data(),DM.n_reads,DM.n_prot);
-    cout<< "True: " << endl;
-    print2Darray(DM.InputData.TruePXgivIrel.data(),DM.n_reads,DM.n_prot);
-    comp2dArrays(calcPXgIRel.data(),DM.InputData.TruePXgivIrel.data(),DM.n_reads,DM.n_prot);
+    
+    CM.processReads(updateVals.data());
+    
+    for(unsigned int i=0;i<DM.n_prot;i++)
+        cout << to_string(updateVals[i]) << ",";
+    
     DM.freeData(&pdevData,d_pdevData);
     return 0;
 }

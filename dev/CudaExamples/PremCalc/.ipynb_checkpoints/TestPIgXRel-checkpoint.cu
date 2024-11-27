@@ -1,5 +1,6 @@
 #include "DataManager.h"
 #include "CalcManager.h"
+#include <chrono>
 
 using namespace std;
 
@@ -15,8 +16,15 @@ int main()
     CalcManager CM;
     DM.dataToGPU(&pdevData,&d_pdevData); //Copies input data to GPU and allocates for internal variables 
     CM.setData(&pdevData,d_pdevData);
-    CM.calcPRem();
-    CM.calcPXgIRel();
+    auto t1 = chrono::high_resolution_clock::now();
+    for(unsigned int i=0;i<10;i++)
+    {
+        CM.calcPRem();
+        CM.calcPXgIRel();
+    }
+    auto t2 = chrono::high_resolution_clock::now();
+    chrono::duration<double, std::milli> ms_double = t2 - t1;
+    cout << "The time to run 10 PXGIREL was " << ms_double.count()<< "ms " << endl;
     vector<float> calcPXgIRel(DM.n_reads*DM.n_prot, 0);
     cudaMemcpy(calcPXgIRel.data(), pdevData.d_MatAux, sizeof(float)*DM.n_reads*DM.n_prot, cudaMemcpyDeviceToHost);
     cout<< "Calculated in GPU: " << endl;

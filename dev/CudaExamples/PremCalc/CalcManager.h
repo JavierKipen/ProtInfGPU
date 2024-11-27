@@ -12,17 +12,19 @@ class CalcManager {  //Class to handle the data movement (later would be also bi
     public:
         CalcManager(); //
         ~CalcManager();
-        void processReads();
+        void processReads(float * outUpdateArray);
         void setData(DeviceDataPXgICalc *devData,DeviceDataPXgICalc *d_devData); //Updates the pointers to the data
         void sumAlphas();
         void calcAlphas();
-        void calcPXgI();
+        void PXIRelSumRows();
+        void calcPXIRel();
         void calcPXgIRel();
         void calcPRem();
     
         DeviceDataPXgICalc *devData; //Array on host with pointers to device memory
         DeviceDataPXgICalc *d_devData; //Array on device with pointers to all data to use in kernels.
     private:
+        void retrieveUpdate(float * outUpdateArray);
         cublasHandle_t cuBlasHandle;
         cublasStatus_t cuBlasStatus; //Cublas status for debugging/error printing
         unsigned int NThreadsPerBlock;

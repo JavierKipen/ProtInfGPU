@@ -49,7 +49,7 @@ void loadCSVToVector(vector<float> *vectorOut, string path)
 	}
 }
 
-void loadExampleInput(InputDataPXgICalc &dataInput, string folder_path)
+void loadExampleInput(InputData &dataInput, string folder_path)
 {
     vector<string> var_names = { "n_fe_per_I.csv", "p_fe_for_I_all.csv", "p_fe_for_I_iz_fe_all.csv","top_n_flu_iz.csv","top_n_flu_scores.csv","True_P_X_given_I_rel.csv" };
     loadCSVToVector(&dataInput.NFexpForI, folder_path+var_names[0]);
@@ -58,6 +58,9 @@ void loadExampleInput(InputDataPXgICalc &dataInput, string folder_path)
     loadCSVToVector(&dataInput.TopNFluExpId, folder_path+var_names[3]);
     loadCSVToVector(&dataInput.TopNFluExpScores, folder_path+var_names[4]);
     loadCSVToVector(&dataInput.TruePXgivIrel, folder_path+var_names[5]);
+    unsigned int n_prot = dataInput.NFexpForI.size(); 
+    vector<float> aux(n_prot, 1.0/((float)n_prot)); 
+    dataInput.PIEst = aux; // For the examples we just assume an equal prob to verify results. 
 }
 
 void saveVectorToCSV(vector<float> *vectorOut, string path)
