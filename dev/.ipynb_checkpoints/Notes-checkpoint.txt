@@ -1,0 +1,18 @@
+This is what worked to make HighFive work:
+On the CMAKE lists:
+
+cmake_minimum_required(VERSION 3.26.3)
+
+project(LOADHDF5)
+
+find_package(HighFive REQUIRED)
+
+add_executable(${PROJECT_NAME} main.cpp)
+
+target_link_libraries(${PROJECT_NAME} HighFive)
+
+
+Then I cmake with 
+cmake -DCMAKE_PREFIX_PATH="third_party/HighFive/build/install/" -S ../../
+make
+./LOADHDF5 to run it
