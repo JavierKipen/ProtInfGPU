@@ -16,3 +16,18 @@ Then I cmake with
 cmake -DCMAKE_PREFIX_PATH="third_party/HighFive/build/install/" -S ../../
 make
 ./LOADHDF5 to run it
+---------------------------------
+NOW TO RUN IT WITH CUDA:
+I first added this to the cmakelists and seems to work
+set(CMAKE_PREFIX_PATH third_party/HighFive/build/install/)
+
+Now lets go with cuda. I add this also to the CMakeLists and change main.cpp to main.cu:
+enable_language("CUDA")
+Works
+
+Now in main i include cublas and a creation of it. Putting this in the target link seems to make it compile and work
+target_link_libraries(${PROJECT_NAME} HighFive -lcublas)
+
+Documentation of high five is very poor, will retarget everything to run with hdf5.
+
+HDF5 Lite APIs no sirve, necesito algo que pueda controlar cuanta memoria traigo.
