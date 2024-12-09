@@ -40,7 +40,7 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         void loadDatasetPaths(); //Loads the paths to the data within the folder.
         void setRemainingMetadataFields(); //Once data is loaded, it gets the redundant metadata information.
         string datasetPath,classifierPath,commonPath,trueIdsPath,fluExpIdForIPath,nFluExpForIPath,
-                    probFluExpForIPath,TopNScoresArrayPath,TopNScoresIdsArrayPath,nSparsityPath;
+                    probFluExpForIPath,TopNScoresArrayPath,TopNScoresIdsArrayPath,nSparsityPath,expNFluExpGenByIPath;
         ifstream TopNScoresArrayStream,TopNScoresIdsArrayStream;
         vector<string> cvScoreIdsPath,cdTrueProtDistPath;
         //Configuration of how much can be stored in ram

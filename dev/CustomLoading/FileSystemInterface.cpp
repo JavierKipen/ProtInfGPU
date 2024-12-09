@@ -105,6 +105,8 @@ bool FileSystemInterface::loadDataset()
     retVal&=readWholeArray(datasetMetadata.fluExpIdForI,fluExpIdForIPath);
     retVal&=readWholeArray(datasetMetadata.nFluExpForI,nFluExpForIPath);
     retVal&=readWholeArray(datasetMetadata.probFluExpForI,probFluExpForIPath);
+    retVal&=readWholeArray(datasetMetadata.expNFluExpGenByI,expNFluExpGenByIPath);
+    
     for(unsigned int i=0;i<nCrossVal;i++)
     {
         retVal&=readWholeArray(cvScoreIds[i],cvScoreIdsPath[i]);
@@ -124,6 +126,7 @@ void FileSystemInterface::loadDatasetPaths()
     fluExpIdForIPath = commonPath / "fluExpIdForI.bin";
     nFluExpForIPath = commonPath / "nFluExpForI.bin";
     probFluExpForIPath = commonPath / "probFluExpForI.bin";
+    expNFluExpGenByIPath = commonPath / "expNFluExpGenByI.bin";
     TopNScoresArrayPath = classifierPath / "Common/TopNScores.bin";
     TopNScoresIdsArrayPath = classifierPath / "Common/TopNScoresId.bin";
     for(unsigned int i=0;i<nCrossVal;i++)
