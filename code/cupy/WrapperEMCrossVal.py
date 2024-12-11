@@ -213,7 +213,7 @@ class WrapperEMCrossVal:
         self.cv_PIEMs = []
         for i in range(self.n_datasets):
             self.cv_PIEMs.append(
-                ProteinInferenceEMv2(self.exp_folder + "/Common/df_info.csv")
+                ProteinInferenceEMv2(self.exp_folder + "/Common/df_info.csv",use_numba=True)
             )
             data = np.load(self.classifier_path + "/CrossVal/ds_" + str(i) + ".npz")
             self.cv_id_scores.append(data["scores_iz"])

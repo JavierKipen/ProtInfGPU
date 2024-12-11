@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define GB_GPU_USAGE_DEFAULT 4 //Limiting memory usage on GPU
+#define GB_GPU_USAGE_DEFAULT 6 //Limiting memory usage on GPU
 #define N_EPOCHS_DEFAULT 60 
 
 
@@ -37,6 +37,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         unsigned int nSparsityRed; //We can reduce the sparsity compared to the native dataset to compare results!
         vector<vector<float>> pIEsts; //Estimations of P_I for all crossValidation
         vector<vector<float>> updates; //updates to then change P_I_Ests.
+        vector<float> ErrMean,ErrStd; //Stores the mean and std of the error measurement used.
     private:
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!
@@ -54,7 +55,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         unsigned int nReadsOffset;
         vector<float> topNFluExpScores; //Sparse vectors representation of the scores to compute
         vector<unsigned int> topNFluExpScoresIds; 
-        vector<float> ErrMean,ErrStd; //Stores the mean and std of the error measurement used.
+        
     
         vector<unsigned int> idToCvScoreIdsStart,idToCvScoreIdsEnd; //For the loaded batch of the scores dataset on RAM, these vectores point to the beg and end of the scores that are valid
         vector<vector<unsigned int>> cvScoreIdsVecOfVec; //Used to partition the scoreIds of the crossval into vectors of size maxReadsToProcessInGpu, to send to gpu

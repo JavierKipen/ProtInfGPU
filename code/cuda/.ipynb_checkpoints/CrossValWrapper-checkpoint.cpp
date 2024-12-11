@@ -21,6 +21,7 @@ void CrossValWrapper::init(string outFolder,string inFolder)
     
     gW.init(&(FSI.datasetMetadata));
     setGPUMemLimit(GB_GPU_USAGE_DEFAULT);
+    nEpochs=10;
     ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
      //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
     topNFluExpScores.resize(maxReadsToProcessInGpu*nSparsityRed,0);topNFluExpScoresIds.resize(maxReadsToProcessInGpu*nSparsityRed,0);
@@ -43,6 +44,8 @@ void CrossValWrapper::setGPUMemLimit(float nGb)
 {
     nBytesToUseGPU=nGb*pow(2,30);
     maxReadsToProcessInGpu = gW.maxReadsToCompute(nBytesToUseGPU); //Given the bytes to use in the GPU, returns how many reads could be computed at the time
+    unsigned int cvReads = FSI.cvScoreIds[0].size();
+    maxReadsToProcessInGpu = (maxReadsToProcessInGpu>cvReads)? cvReads:maxReadsToProcessInGpu; //If we can fit all data, then we dont allocate more.
     gW.allocateWorkingMemory(maxReadsToProcessInGpu); //Allocates memory and sends the metadata that wont change between reads
 }
 
@@ -88,10 +91,17 @@ void CrossValWrapper::getValidCVScoresIds()
     for(unsigned int i=0;i<FSI.nCrossVal;i++) //For every cross validation dataset
     {
         unsigned int j=0;
+        bool found=false;
         for(j=idToCvScoreIdsStart[i];j<FSI.cvScoreIds[i].size();j++)
+        {
             if((FSI.cvScoreIds[i][j])>=nReadsOffset+FSI.nReadsInMemory) //The reads in ram are [nReadsOffset,nReadsOffset+FSI->nReadsInMemory)
+            {
+                found=true;
                 break;
-        idToCvScoreIdsEnd[i]=j-1; //when using break it still advances j.
+            }
+        }
+            
+        idToCvScoreIdsEnd[i]=(found)?(j-1):j; //when using break it still advances j. 
     }
 }
 
@@ -104,8 +114,8 @@ void CrossValWrapper::partitionDataset(unsigned int cvIndex)
     {
         auto beg=itr;
         auto end=itr_end; //by default, it would be the end of the scores we are considering
-        if(distance(itr, itr_end)>maxReadsToProcessInGpu) //When we have more than this, we can fill a buffer completely
-            end=itr+maxReadsToProcessInGpu;
+        if(distance(itr, itr_end)>maxReadsToProcessInGpu) //If the vector is bigger than the reads we can process at a time in GPU, we partition it!.
+            end=itr+maxReadsToProcessInGpu; 
         
         vector<unsigned int> auxVec(beg, end);
         for (auto& it : auxVec) 

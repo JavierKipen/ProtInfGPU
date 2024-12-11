@@ -11,5 +11,8 @@ int main() {
     
     CVW.computeEMCrossVal();
     
+    for(unsigned int i=0;i<10;i++)
+        cout << to_string(CVW.ErrMean[i]) << " , ";
+    
     return 0;
 }

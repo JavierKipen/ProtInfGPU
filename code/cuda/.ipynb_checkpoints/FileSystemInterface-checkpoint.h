@@ -10,7 +10,9 @@
 
 using namespace std;
 
-#define GB_PARTIAL_SCORES_DEFAULT 0.001 //4Gb of the default usage to load scores from disk
+//#define GB_PARTIAL_SCORES_DEFAULT 4 //4Gb of the default usage to load scores from disk
+#define GB_PARTIAL_SCORES_DEFAULT 16
+//#define GB_PARTIAL_SCORES_DEFAULT 0.001 
 #define N_DATASETS_CROSSVALIDATION_DEFAULT 10 //Number of cross validation runs by default 
 
 
