@@ -29,6 +29,8 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
     
         void computeEMCrossVal();
         void computeEMCrossValEpoch();
+        void exportResults();
+        string genRunConfigMsg();
         
 
     
@@ -38,6 +40,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         vector<vector<float>> pIEsts; //Estimations of P_I for all crossValidation
         vector<vector<float>> updates; //updates to then change P_I_Ests.
         vector<float> ErrMean,ErrStd; //Stores the mean and std of the error measurement used.
+        
     private:
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!
@@ -47,12 +50,13 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         void calcError(unsigned int epoch);
         PNewData genPNewData(unsigned int cvIndex, unsigned int nReadsToCompute);
     
-        string outFolderPath;
+        string outFolderPath,experimentFolder;
         GPUWrapper gW;
     
         unsigned long nBytesToUseGPU; //Limit of memory to use of the GPU in Bytes.
         unsigned int maxReadsToProcessInGpu; //Given the restriction in memory in GPU, we have a limit on the amount of reads we can use in the moment
         unsigned int nReadsOffset;
+        unsigned int timeProcessing;
         vector<float> topNFluExpScores; //Sparse vectors representation of the scores to compute
         vector<unsigned int> topNFluExpScoresIds; 
         

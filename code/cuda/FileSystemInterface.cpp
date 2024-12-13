@@ -2,6 +2,12 @@
 #include <fstream>
 #include <algorithm>
 #include <math.h>       /* pow */
+#include <ostream>
+#include <iomanip>  //For time to create the experiment folder
+#include <ctime>
+#include <sstream>
+
+
 
 string operator/(string const& c1, string const& c2);
 
@@ -99,6 +105,47 @@ void FileSystemInterface::restartReading()
     finishedReading=false;
 }
 
+void FileSystemInterface::saveCSV(string path, vector<string> &cols, vector<vector<string>> &content)
+{
+    ofstream outFile(path);
+    
+    //Set columns
+    for(int i = 0; i < cols.size(); i++)
+        outFile << cols[i] << ((i==cols.size()-1) ? "\n":",");
+    // Send data to the stream
+    for(int i = 0; i < content[0].size(); i++) //For each row
+    {
+        for(int j = 0; j < content.size(); j++) //for each column
+            outFile << content[j][i] << ((j==content.size()-1) ? "\n":",");
+    }
+    
+    // Close the file
+    outFile.close();
+    
+}
+void FileSystemInterface::saveTxt(string path,string msg)
+{
+    ofstream outFile(path);
+    outFile << msg;
+    outFile.close();
+    
+}
+
+string FileSystemInterface::createExperimentFolder(string pathToResult)
+{
+    string expFolder;
+    auto t = time(nullptr); //https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
+    auto tm = *localtime(&t);
+    ostringstream oss;
+    oss << put_time(&tm, "%d-%m-%Y_%H-%M-%S");
+    auto strTime = oss.str();
+    expFolder=pathToResult+"/"+strTime; //Adds time to the folder
+    //system("echo Going to create a folder!");
+    string command="mkdir -p " + expFolder;
+    system(command.c_str());
+    //filesystem::create_directories(expFolder);
+    return expFolder;
+}
 
 bool FileSystemInterface::loadDataset()
 {

@@ -17,15 +17,15 @@ class GPUWrapper{  //Class to handle the data movement (later would be also bind
         unsigned long maxReadsToCompute(unsigned long nBytesToUseGPU); //Given the bytes to use in the GPU, returns how many reads could be computed at the time
         void allocateWorkingMemory(unsigned long nReadsPerUpdate); //Given the amount of reads to compute at each update, allocates the working memory on device.
         void accumulateUpdates(float *updateVectorOut, PNewData pNewData);
-    
+        GPUDataManager gDM;
+        GPUCalcManager gCM;
     private:
         bool allocatedData;
         vector<float> auxUpdates;
         DatasetMetadata *pDatasetMetadata; //Points to datasetMetadata.
         DeviceData devData; //devData ON THE HOST.
         DeviceData *d_pdevData; //Pointer to devData ON THE DEVICE.
-        GPUDataManager gDM;
-        GPUCalcManager gCM;
+        
         
     
 };

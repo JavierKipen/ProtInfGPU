@@ -26,6 +26,10 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         void readPartialScores(); //Loads in the vectors the next part of the scores.
         void restartReading(); //Starts reading the scores from the beginning of the file.
         bool finishedReading; //Flag to indicate that finished reading the dataset. If it has finished, the read has to be reset to start fetching the scores again
+    
+        void saveCSV(string path, vector<string> &cols, vector<vector<string>> &content);//Saves csv results
+        void saveTxt(string path,string msg); //Saves txt of results
+        string createExperimentFolder(string pathToResult); //Creates a folder for the results!
 
         unsigned long sizeForPartialScores,bufferSize; //How much bytes dedicated to load reads from disk to RAM!
         unsigned long nScoresElementsInMemory,nReadsInMemory;

@@ -14,7 +14,7 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         ~GPUCalcManager();
     
         void calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevData); //Assumes data is loaded on device, then calculates the update
-        
+        unsigned int NThreadsPerBlock;
     private:
         DeviceData *pdevData, *d_pdevData; //p to dev data both on device and host, save on the call to pass within the functions easier.
         void sumAlphas();
@@ -25,7 +25,7 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         void calcPRem();
         cublasHandle_t cuBlasHandle;
         cublasStatus_t cuBlasStatus; //Cublas status for debugging/error printing
-        unsigned int NThreadsPerBlock;
+        
         
     
 };

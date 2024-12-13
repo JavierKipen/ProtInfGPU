@@ -2,6 +2,7 @@
 #include <math.h>
 #include <numeric> //std::accumulate
 #include <algorithm> //std::for_each 
+#include <chrono>
 
 CrossValWrapper::CrossValWrapper()
 {
@@ -15,6 +16,7 @@ void CrossValWrapper::init(string outFolder,string inFolder)
 {
     outFolderPath=outFolder;
     FSI.init(inFolder);
+    experimentFolder=FSI.createExperimentFolder(outFolder);
     idToCvScoreIdsEnd.resize(FSI.nCrossVal,0);idToCvScoreIdsStart.resize(FSI.nCrossVal,0);
     //CM.setMetadata(); //Data To configure the processing
     nSparsityRed=FSI.datasetMetadata.nSparsity; //This line would change if we want to set a lower sparsity than the dataset (useful to compare performances).
@@ -51,12 +53,17 @@ void CrossValWrapper::setGPUMemLimit(float nGb)
 
 void CrossValWrapper::computeEMCrossVal()
 {
+    auto t1 = chrono::high_resolution_clock::now();
     for(unsigned int i=0;i<nEpochs;i++)
     {
         computeEMCrossValEpoch(); //Gets the updates values looping through one read of the whole dataset with all crossval picks
         updatePIs(); //Uses the update weights to obtain new P(I) estimates
         calcError(i); //After having the new PIEsts, the error is calculated and stored
     }
+    auto t2 = chrono::high_resolution_clock::now();
+    auto int_s = std::chrono::duration_cast<chrono::seconds>(t2 - t1);
+    timeProcessing = int_s.count();
+    exportResults();
 }
 void CrossValWrapper::computeEMCrossValEpoch()
 {
@@ -176,7 +183,38 @@ void CrossValWrapper::updatePIs()
     }
     
 }
-
+void CrossValWrapper::exportResults()
+{
+    vector<string> cols({"Epoch","Error mean", "Error std"});
+    vector<string> epochs,errMeanStr,errStdStr;
+    for(unsigned int i=0;i<nEpochs;i++)
+    {
+        epochs.push_back(to_string(i+1));
+        errMeanStr.push_back(to_string(ErrMean[i]));
+        errStdStr.push_back(to_string(ErrStd[i]));
+    }
+    vector<vector<string>> outVector;
+    outVector.push_back(epochs);outVector.push_back(errMeanStr);outVector.push_back(errStdStr);
+    FSI.saveCSV(experimentFolder+"/ErrVsEpochs.csv", cols, outVector);
+    FSI.saveTxt(experimentFolder+"/RunConfig.txt",genRunConfigMsg());
+}
+string CrossValWrapper::genRunConfigMsg()
+{
+    string out;
+    
+    out = "Nepochs: " + to_string(nEpochs) + "\n";
+    out+= "Runtime: "+ to_string(timeProcessing) + "\n";
+    out+= "NSparsity: " + to_string(nSparsityRed) + "\n";
+    out+= "NThreadsPerBlock: "+ to_string(gW.gCM.NThreadsPerBlock) + "\n";
+    out+= "NBytesUseGPU: "+ to_string(nBytesToUseGPU) + "\n";
+    out+= "MaxReadsGPU: "+ to_string(maxReadsToProcessInGpu) + "\n";
+    out+= "NcrossVal: "+ to_string(FSI.nCrossVal) + "\n";
+    out+= "NtotalReads: "+ to_string(FSI.cvScoreIds[0].size()) + "\n";
+    out+= "Nprot: "+ to_string(FSI.datasetMetadata.nProt) + "\n";
+    out+= "NReadsInRam: "+ to_string(FSI.nReadsPartialScores) + "\n";    
+    
+    return out;
+}
 void CrossValWrapper::calcError(unsigned int epoch)
 {
     

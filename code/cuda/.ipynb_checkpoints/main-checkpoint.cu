@@ -3,9 +3,9 @@
 
 using namespace std;
 
-int main() {
+int main(int argc, char** argv) {
     string classifierPath = "/home/jkipen/raid_storage/ProtInfGPU/data/5_Prot/binary/rf_n_est_10_depth_10";
-    string outPath= "ASD";
+    string outPath= "/home/jkipen/ProtInfGPU/results/5Prot";
     CrossValWrapper CVW;
     CVW.init(outPath,classifierPath);
     
