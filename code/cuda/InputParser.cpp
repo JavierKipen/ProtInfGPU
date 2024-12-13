@@ -83,7 +83,7 @@ void InputParser::init()
                      // Key ,        Description      , Default value
     vector<array<string,N_DESCRIPTORS>> aux({ {"-m",   "Memory limit on RAM" ,     "8"       },
                       {"-M",   "Memory limit on GPU" ,     "7"       },
-                      {"-n",       "N sparsity"      ,     "100"      },
+                      {"-n",       "N sparsity"      ,     "30"      },
                       {"-o",       "Use oracle"      ,      "0"      }, //Uses oracle. value  is the probability of error
                       {"-c","Cross validation datasets",   "10"      },
                       {"-e",     "Number of epochs"  ,     "60"      },

@@ -45,6 +45,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         string inputFolderPath,outFolderPath,experimentFolder;
         GPUWrapper gW;
         float limitMemGPUGb;
+        DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
     private:
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!

@@ -76,6 +76,8 @@ void FileSystemInterface::setPartialScoresSize(float nGygas)
     sizeForPartialScores=nGygas*pow(2,30);
     unsigned long sizePerRead = datasetMetadata.nSparsity*(sizeof(float)+sizeof(unsigned int)); //Number of bytes that one score for reads occupies, considering probs and Ids!
     nReadsPartialScores=(unsigned int)(sizeForPartialScores/sizePerRead);
+    if(nReadsPartialScores>nScoresTotal)
+        nReadsPartialScores=nScoresTotal; //We dont need to store more than 
     bufferSize=((unsigned long)(datasetMetadata.nSparsity))*((unsigned long)(nReadsPartialScores)); //How much we elements should reserve on each vector
     TopNScoresPartialFlattened.resize(bufferSize);
     TopNScoresIdsPartialFlattened.resize(bufferSize);

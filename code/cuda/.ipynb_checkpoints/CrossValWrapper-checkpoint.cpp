@@ -21,6 +21,7 @@ void CrossValWrapper::initDefault(string outFolder,string inFolder)
     //CM.setMetadata(); //Data To configure the processing
     nSparsityRed=FSI.datasetMetadata.nSparsity; //This line would change if we want to set a lower sparsity than the dataset (useful to compare performances).
     
+   
     gW.init(&(FSI.datasetMetadata));
     setGPUMemLimit(GB_GPU_USAGE_DEFAULT);
     nEpochs=10;
@@ -52,7 +53,9 @@ void CrossValWrapper::init() //This init assumes that some variables have alread
     if(nSparsityRed>FSI.datasetMetadata.nSparsity) 
         cout << "N Sparsity is bigger than dataset sparsity!!" << endl; //This shouldnt happen, might break the code.
     
-    gW.init(&(FSI.datasetMetadata));
+    modifDatasetMetadataForGPU=FSI.datasetMetadata;
+    modifDatasetMetadataForGPU.nSparsity=nSparsityRed;
+    gW.init(&(modifDatasetMetadataForGPU));
     setGPUMemLimit(limitMemGPUGb);
     ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
      //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
