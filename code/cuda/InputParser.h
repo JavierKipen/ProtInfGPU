@@ -3,8 +3,15 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
+#include <array>
 
 using namespace std;
+
+
+#define DEFAULT_INPUT_PATH "/home/jkipen/raid_storage/ProtInfGPU/data/5_Prot/binary/rf_n_est_10_depth_10"
+#define DEFAULT_OUTPUT_PATH "/home/jkipen/ProtInfGPU/results/5_Prot"
+
 
 
 typedef enum
@@ -38,15 +45,16 @@ class InputParser{  //Class to handle the data movement (later would be also bin
         void init();
         bool parse(int argc, char** argv);
         unsigned int getKeyIdx(string description);
-        void displayInfoTable(); //If there was an error in the parsing, here we plot the message of how it should be called.
+        void displayInfoMsg(); //If there was an error in the parsing, here we plot the message of how it should be called.
+        bool keyExists(string str);
     
         string inputDir,outputDir; //Directories.
         unsigned int nEpochs,nCrossValDs,nTreadsPerBlock,nSparsity;
-        bool useOracle;
+        bool useOracle,verbose;
         float oraclePErr,limitRAMGb,limitMemGPUGb;
     
     private:
-        bool parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, char** argv)
+        bool parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, char** argv);
         vector<array<string,N_DESCRIPTORS>> keyDescriptions;     
     
 };

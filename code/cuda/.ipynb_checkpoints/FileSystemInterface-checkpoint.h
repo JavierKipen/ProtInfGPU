@@ -35,6 +35,7 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         unsigned long nScoresElementsInMemory,nReadsInMemory;
         unsigned int nReadsPartialScores; //How many reads are then stored
         unsigned int nCrossVal,nScoresTotal;
+        float limitRAMGb;
         DatasetMetadata datasetMetadata;
         vector<unsigned int> trueIds; 
         vector<vector<unsigned int>> cvScoreIds; 

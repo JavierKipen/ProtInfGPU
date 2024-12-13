@@ -12,7 +12,7 @@ CrossValWrapper::~CrossValWrapper()
 {
     
 }
-void CrossValWrapper::init(string outFolder,string inFolder)
+void CrossValWrapper::initDefault(string outFolder,string inFolder)
 {
     outFolderPath=outFolder;
     FSI.init(inFolder);
@@ -24,6 +24,36 @@ void CrossValWrapper::init(string outFolder,string inFolder)
     gW.init(&(FSI.datasetMetadata));
     setGPUMemLimit(GB_GPU_USAGE_DEFAULT);
     nEpochs=10;
+    ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
+     //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
+    topNFluExpScores.resize(maxReadsToProcessInGpu*nSparsityRed,0);topNFluExpScoresIds.resize(maxReadsToProcessInGpu*nSparsityRed,0);
+    
+    float norm=0;
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        norm+=FSI.datasetMetadata.expNFluExpGenByI[j];
+    vector<float> auxPI(FSI.datasetMetadata.nProt,0);
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        auxPI[j]=FSI.datasetMetadata.expNFluExpGenByI[j]/norm;
+    for(unsigned int i=0;i<FSI.nCrossVal;i++)
+    {   
+        vector<float> aux(FSI.datasetMetadata.nProt,0);
+        updates.push_back(aux);
+        pIEsts.push_back(auxPI); //equally likely proteins assumption!
+    }
+    
+}
+
+void CrossValWrapper::init() //This init assumes that some variables have already been set (input and output path, nsparsity,nCrossVal, nepochs
+{
+    FSI.init(inputFolderPath);
+    experimentFolder=FSI.createExperimentFolder(outFolderPath);
+    idToCvScoreIdsEnd.resize(FSI.nCrossVal,0);idToCvScoreIdsStart.resize(FSI.nCrossVal,0);
+    //CM.setMetadata(); //Data To configure the processing
+    if(nSparsityRed>FSI.datasetMetadata.nSparsity) 
+        cout << "N Sparsity is bigger than dataset sparsity!!" << endl; //This shouldnt happen, might break the code.
+    
+    gW.init(&(FSI.datasetMetadata));
+    setGPUMemLimit(limitMemGPUGb);
     ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
      //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
     topNFluExpScores.resize(maxReadsToProcessInGpu*nSparsityRed,0);topNFluExpScoresIds.resize(maxReadsToProcessInGpu*nSparsityRed,0);

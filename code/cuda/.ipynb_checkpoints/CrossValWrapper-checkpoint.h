@@ -23,7 +23,8 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
     public:
         CrossValWrapper();
         ~CrossValWrapper();
-        void init(string outFolder,string inFolder); //Initializes the class
+        void initDefault(string outFolder,string inFolder); //Initializes the class with the given folders and default parameters
+        void init(); //Initializes the class assuming necesary variables were set.
         void setGPUMemLimit(float nGb); //Number of gygabites as maximum to use in the GPU calculations
         void setNSparsity(unsigned int nSparsityRed);
     
@@ -40,7 +41,10 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         vector<vector<float>> pIEsts; //Estimations of P_I for all crossValidation
         vector<vector<float>> updates; //updates to then change P_I_Ests.
         vector<float> ErrMean,ErrStd; //Stores the mean and std of the error measurement used.
-        
+    
+        string inputFolderPath,outFolderPath,experimentFolder;
+        GPUWrapper gW;
+        float limitMemGPUGb;
     private:
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!
@@ -50,8 +54,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         void calcError(unsigned int epoch);
         PNewData genPNewData(unsigned int cvIndex, unsigned int nReadsToCompute);
     
-        string outFolderPath,experimentFolder;
-        GPUWrapper gW;
+        
     
         unsigned long nBytesToUseGPU; //Limit of memory to use of the GPU in Bytes.
         unsigned int maxReadsToProcessInGpu; //Given the restriction in memory in GPU, we have a limit on the amount of reads we can use in the moment

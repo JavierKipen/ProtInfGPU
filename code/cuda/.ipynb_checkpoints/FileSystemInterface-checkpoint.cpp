@@ -46,14 +46,15 @@ template<typename T> bool readWholeArray(vector<T> &vect,string path) //reads a 
 
 FileSystemInterface::FileSystemInterface()
 {
-    
+    nCrossVal=N_DATASETS_CROSSVALIDATION_DEFAULT;
+    limitRAMGb=GB_PARTIAL_SCORES_DEFAULT;
 }
 void FileSystemInterface::init(string classifierPath)
 {
     this->classifierPath=classifierPath;
     this->datasetPath=classifierPath.substr(0,classifierPath.find_last_of("/\\"));
     commonPath= datasetPath / "Common";
-    nCrossVal=N_DATASETS_CROSSVALIDATION_DEFAULT;
+    
     finishedReading=false;
     nScoresElementsInMemory;nReadsInMemory=0; //No results in memory when initializing
     for(unsigned int i=0;i<nCrossVal;i++) //Fills vectors of vectors with empty vectors to be filled
@@ -65,7 +66,7 @@ void FileSystemInterface::init(string classifierPath)
     if(loadDataset())
     {
         setRemainingMetadataFields();
-        setPartialScoresSize(GB_PARTIAL_SCORES_DEFAULT);
+        setPartialScoresSize(limitRAMGb);
     }
     else
         cout << "There was a problem when loading the dataset" << endl;
