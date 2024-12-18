@@ -6,7 +6,8 @@
 
 CrossValWrapper::CrossValWrapper()
 {
-    
+    oracle=false;
+    oraclePErr=0;
 }
 CrossValWrapper::~CrossValWrapper()
 {
@@ -49,6 +50,8 @@ void CrossValWrapper::init() //This init assumes that some variables have alread
     FSI.init(inputFolderPath);
     experimentFolder=FSI.createExperimentFolder(outFolderPath);
     idToCvScoreIdsEnd.resize(FSI.nCrossVal,0);idToCvScoreIdsStart.resize(FSI.nCrossVal,0);
+    if(oracle)
+        nSparsityRed=1; //It will be only the true peptide with a certain prob!
     //CM.setMetadata(); //Data To configure the processing
     if(nSparsityRed>FSI.datasetMetadata.nSparsity) 
         cout << "N Sparsity is bigger than dataset sparsity!!" << endl; //This shouldnt happen, might break the code.
@@ -89,7 +92,10 @@ void CrossValWrapper::computeEMCrossVal()
     auto t1 = chrono::high_resolution_clock::now();
     for(unsigned int i=0;i<nEpochs;i++)
     {
-        computeEMCrossValEpoch(); //Gets the updates values looping through one read of the whole dataset with all crossval picks
+        if(oracle)
+            computeEMCrossValEpochOracle(); //When its oracle, can be done much faster!
+        else
+            computeEMCrossValEpoch(); //Gets the updates values looping through one read of the whole dataset with all crossval picks
         updatePIs(); //Uses the update weights to obtain new P(I) estimates
         calcError(i); //After having the new PIEsts, the error is calculated and stored
     }
@@ -124,6 +130,21 @@ void CrossValWrapper::computeEMCrossValEpoch()
     FSI.restartReading();
     for(auto& itr:idToCvScoreIdsStart)
         itr=0; //Restart idxs of start
+}
+void CrossValWrapper::computeEMCrossValEpochOracle()
+{
+    nReadsOffset=0; //No offset in Oracle.
+    for(unsigned int i=0;i<FSI.nCrossVal;i++) //For every cross validation dataset
+    {
+        for(auto& vec : cvScoreIdsVecOfVec)
+            vec.clear();
+        cvScoreIdsVecOfVec.clear(); //We clean the vect of vectors before using it!
+        idToCvScoreIdsStart[i]=0;
+        idToCvScoreIdsEnd[i]=FSI.cvScoreIds[i].size(); //We assume all indexes on memory.
+        partitionDataset(i);//The cvScoreIds are partitioned in cvScoreIdsVecOfVec so each compute can be done easily
+        for(unsigned int j=0;j<cvScoreIdsVecOfVec.size();j++)
+            computeUpdateSubSet(i,j);
+    }
 }
 
 void CrossValWrapper::getValidCVScoresIds()
@@ -167,7 +188,10 @@ void CrossValWrapper::partitionDataset(unsigned int cvIndex)
     
 void CrossValWrapper::computeUpdateSubSet(unsigned int cvIndex,unsigned int subSetIdx)
 {
-    loadScoresInBuffer(cvScoreIdsVecOfVec[subSetIdx]); //Puts certain scores on the buffer of this class
+    if(oracle)
+        loadOracleScores(cvScoreIdsVecOfVec[subSetIdx]);
+    else
+        loadScoresInBuffer(cvScoreIdsVecOfVec[subSetIdx]); //Puts certain scores on the buffer of this class
     gW.accumulateUpdates(updates[cvIndex].data(), genPNewData(cvIndex, cvScoreIdsVecOfVec[subSetIdx].size())); //Calls the update calculation on the GPU, and sums the updates obtained.
 }
 
@@ -181,6 +205,16 @@ PNewData CrossValWrapper::genPNewData(unsigned int cvIndex, unsigned int nReadsT
     return retVal;
 }
 
+void CrossValWrapper::loadOracleScores(vector<unsigned int> &IdxsCv)
+{
+    unsigned int len=IdxsCv.size(); //Has to be lower or eq than the buffer length!
+    for(unsigned int i=0;i<len;i++)
+    {
+        topNFluExpScores[i] = 1-oraclePErr; //Oracle error
+        topNFluExpScoresIds[i] = FSI.trueIds[IdxsCv[i]]; //Chooses the true ID of that radiometry!
+    }
+}
+
 void CrossValWrapper::loadScoresInBuffer(vector<unsigned int> &IdxsCv)
 {//The idxs refer to which point in the buffer from pFSI will be selected: NOTE that they need to be normalized if the dataset enters in RAM memory
     unsigned int len=IdxsCv.size(); //Has to be lower or eq than the buffer length!
@@ -191,10 +225,6 @@ void CrossValWrapper::loadScoresInBuffer(vector<unsigned int> &IdxsCv)
         {
             unsigned long idxInPFSI=currId*FSI.datasetMetadata.nSparsity+j; //In pFSI the array has metadata.nSparsity columns, while the array to send to gpu has this->nSparsityRed columns
             unsigned long idxInBuffer=i*nSparsityRed+j;
-            if (idxInPFSI>FSI.TopNScoresPartialFlattened.size()) //This 4 lines should be commented when it works
-                cout << "ERR1" << endl;
-            if (idxInBuffer>topNFluExpScores.size())
-                cout << "ERR2" << endl;
             topNFluExpScores[idxInBuffer] = FSI.TopNScoresPartialFlattened[idxInPFSI];
             topNFluExpScoresIds[idxInBuffer] = FSI.TopNScoresIdsPartialFlattened[idxInPFSI];
         }
@@ -245,6 +275,8 @@ string CrossValWrapper::genRunConfigMsg()
     out+= "NtotalReads: "+ to_string(FSI.cvScoreIds[0].size()) + "\n";
     out+= "Nprot: "+ to_string(FSI.datasetMetadata.nProt) + "\n";
     out+= "NReadsInRam: "+ to_string(FSI.nReadsPartialScores) + "\n";    
+    out+= "Oracle: "+ to_string(oracle) + "\n"; 
+    out+= "Oracle Perr: "+ to_string(oraclePErr) + "\n"; 
     
     return out;
 }

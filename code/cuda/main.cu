@@ -29,5 +29,7 @@ void setConfigurations(InputParser& IP, CrossValWrapper& CVW)
     CVW.FSI.nCrossVal=IP.nCrossValDs;
     CVW.FSI.limitRAMGb= IP.limitRAMGb;
     CVW.limitMemGPUGb=IP.limitMemGPUGb;
+    CVW.oracle=IP.useOracle;
+    CVW.oraclePErr=IP.oraclePErr;
     CVW.init();
 }

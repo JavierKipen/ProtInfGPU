@@ -30,6 +30,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
     
         void computeEMCrossVal();
         void computeEMCrossValEpoch();
+        void computeEMCrossValEpochOracle();
         void exportResults();
         string genRunConfigMsg();
         
@@ -46,7 +47,10 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         GPUWrapper gW;
         float limitMemGPUGb;
         DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
+        bool oracle;
+        float oraclePErr;
     private:
+        void loadOracleScores(vector<unsigned int> &IdxsCv);
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!
         void partitionDataset(unsigned int cvIndex);
