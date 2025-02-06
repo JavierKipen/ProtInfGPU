@@ -86,7 +86,7 @@ void InputParser::init()
                       {"-n",       "N sparsity"      ,     "30"      },
                       {"-o",       "Use oracle"      ,      "0"      }, //Uses oracle. value  is the probability of error
                       {"-c","Cross validation datasets",   "10"      },
-                      {"-e",     "Number of epochs"  ,     "10"      },
+                      {"-e",     "Number of epochs"  ,     "60"      },
                       {"-v",         "Verbose"       ,     "No"      }, //No value, using the key will make the code verbose.
                       {"-t","Number of threads per block", "16"      }});
     
@@ -101,7 +101,7 @@ void InputParser::init()
     nSparsity=atoi(keyDescriptions[getKeyIdx("N sparsity")][DEFAULT_VALUE].c_str());
     limitRAMGb=stof(keyDescriptions[getKeyIdx("Memory limit on RAM")][DEFAULT_VALUE]);
     limitMemGPUGb=stof(keyDescriptions[getKeyIdx("Memory limit on GPU")][DEFAULT_VALUE]);
-    useOracle=true;
+    useOracle=false;
     verbose=false;
     oraclePErr=0.01;
 }
