@@ -31,10 +31,12 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         void saveTxt(string path,string msg); //Saves txt of results
         string createExperimentFolder(string pathToResult); //Creates a folder for the results!
 
+        bool useSubsetCV,allScoresFitInMem; //Indicates if less samples are used in cv (way to reduce computing t ime).
         unsigned long sizeForPartialScores,bufferSize; //How much bytes dedicated to load reads from disk to RAM!
         unsigned long nScoresElementsInMemory,nReadsInMemory;
         unsigned int nReadsPartialScores; //How many reads are then stored
-        unsigned int nCrossVal,nScoresTotal;
+        unsigned int nCrossVal,nScoresTotal,nSubsetCV;
+
         float limitRAMGb;
         DatasetMetadata datasetMetadata;
         vector<unsigned int> trueIds; 
@@ -43,9 +45,10 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         vector<float> TopNScoresPartialFlattened;
         vector<unsigned int> TopNScoresIdsPartialFlattened;
     private:
-        unsigned int nReadsToG(unsigned int nReads);
+        unsigned long nReadsToG(unsigned long  nReads);
         bool loadDataset(); //Loads all the info of the dataset except for the scores. Returns 0 if the dataset did not load correctly
         void loadDatasetPaths(); //Loads the paths to the data within the folder.
+        void resampleCVIdxs();
         void setRemainingMetadataFields(); //Once data is loaded, it gets the redundant metadata information.
         string datasetPath,classifierPath,commonPath,trueIdsPath,fluExpIdForIPath,nFluExpForIPath,
                     probFluExpForIPath,TopNScoresArrayPath,TopNScoresIdsArrayPath,nSparsityPath,expNFluExpGenByIPath;

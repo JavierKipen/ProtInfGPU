@@ -85,6 +85,11 @@ __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
 
 GPUCalcManager::GPUCalcManager()
 {
+    
+}
+
+void GPUCalcManager::init()
+{
     cublasCreate(&cuBlasHandle);
     NThreadsPerBlock=DEFAULT_N_THREADS_PER_BLOCK;
 }

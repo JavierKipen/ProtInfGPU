@@ -8,6 +8,7 @@ CrossValWrapper::CrossValWrapper()
 {
     oracle=false;
     oraclePErr=0;
+    loadedData=false;
 }
 CrossValWrapper::~CrossValWrapper()
 {
@@ -23,7 +24,7 @@ void CrossValWrapper::initDefault(string outFolder,string inFolder)
     nSparsityRed=FSI.datasetMetadata.nSparsity; //This line would change if we want to set a lower sparsity than the dataset (useful to compare performances).
     
    
-    gW.init(&(FSI.datasetMetadata));
+    gW.init(&(FSI.datasetMetadata),deviceN);
     setGPUMemLimit(GB_GPU_USAGE_DEFAULT);
     nEpochs=10;
     ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
@@ -58,7 +59,7 @@ void CrossValWrapper::init() //This init assumes that some variables have alread
     
     modifDatasetMetadataForGPU=FSI.datasetMetadata;
     modifDatasetMetadataForGPU.nSparsity=nSparsityRed;
-    gW.init(&(modifDatasetMetadataForGPU));
+    gW.init(&(modifDatasetMetadataForGPU),deviceN);
     setGPUMemLimit(limitMemGPUGb);
     ErrMean.resize(nEpochs,0);ErrStd.resize(nEpochs,0);
      //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
@@ -110,8 +111,14 @@ void CrossValWrapper::computeEMCrossValEpoch()
     nReadsOffset=0; //Keeps track of the number of reads got before
     while(!FSI.finishedReading) //The dataset may not fit in RAM, so we load batches!
     {
-        
-        FSI.readPartialScores(); //Loads batch of scores from disk
+        if( (!FSI.allScoresFitInMem)  || (FSI.allScoresFitInMem && !loadedData) ) //Only loads data if it does not fit all in memory, or if it fits but is first load.
+        {    
+            FSI.readPartialScores(); //Loads batch of scores from disk
+            loadedData=true; //We already loaded once data.
+        }
+        else
+            FSI.finishedReading=true; //When not loading, we still have to emulate that the reads were loaded for the while loop.
+           
         getValidCVScoresIds(); //Selects the end IDs of the scores so we use scores that are in RAM
         for(unsigned int i=0;i<FSI.nCrossVal;i++) //For every cross validation dataset
         {
@@ -272,6 +279,7 @@ string CrossValWrapper::genRunConfigMsg()
     out+= "NBytesUseGPU: "+ to_string(nBytesToUseGPU) + "\n";
     out+= "MaxReadsGPU: "+ to_string(maxReadsToProcessInGpu) + "\n";
     out+= "NcrossVal: "+ to_string(FSI.nCrossVal) + "\n";
+    out+= "NsubsetCV: "+ to_string(FSI.nSubsetCV) + "\n";
     out+= "NtotalReads: "+ to_string(FSI.cvScoreIds[0].size()) + "\n";
     out+= "Nprot: "+ to_string(FSI.datasetMetadata.nProt) + "\n";
     out+= "NReadsInRam: "+ to_string(FSI.nReadsPartialScores) + "\n";    

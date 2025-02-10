@@ -13,6 +13,8 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         GPUCalcManager(); //
         ~GPUCalcManager();
     
+        void init();
+    
         void calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevData); //Assumes data is loaded on device, then calculates the update
         unsigned int NThreadsPerBlock;
     private:

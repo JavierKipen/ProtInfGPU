@@ -37,6 +37,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
 
     
         FileSystemInterface FSI; //Interface for loading the reads
+        unsigned int deviceN; //Indicates which device will be used for the GPU
         unsigned int nEpochs;
         unsigned int nSparsityRed; //We can reduce the sparsity compared to the native dataset to compare results!
         vector<vector<float>> pIEsts; //Estimations of P_I for all crossValidation
@@ -47,7 +48,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         GPUWrapper gW;
         float limitMemGPUGb;
         DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
-        bool oracle;
+        bool oracle,loadedData;
         float oraclePErr;
     private:
         void loadOracleScores(vector<unsigned int> &IdxsCv);

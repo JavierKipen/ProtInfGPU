@@ -13,7 +13,7 @@ class GPUWrapper{  //Class to handle the data movement (later would be also bind
         GPUWrapper();
         ~GPUWrapper();
         
-        void init(DatasetMetadata *pDatasetMetadata);
+        void init(DatasetMetadata *pDatasetMetadata,unsigned int deviceN);
         unsigned long maxReadsToCompute(unsigned long nBytesToUseGPU); //Given the bytes to use in the GPU, returns how many reads could be computed at the time
         void allocateWorkingMemory(unsigned long nReadsPerUpdate); //Given the amount of reads to compute at each update, allocates the working memory on device.
         void accumulateUpdates(float *updateVectorOut, PNewData pNewData);

@@ -30,6 +30,12 @@ void setConfigurations(InputParser& IP, CrossValWrapper& CVW)
     CVW.FSI.limitRAMGb= IP.limitRAMGb;
     CVW.limitMemGPUGb=IP.limitMemGPUGb;
     CVW.oracle=IP.useOracle;
+    CVW.deviceN=IP.deviceN;
     CVW.oraclePErr=IP.oraclePErr;
+    if(IP.nSubsetCV>0)
+    {
+        CVW.FSI.useSubsetCV=true;
+        CVW.FSI.nSubsetCV=IP.nSubsetCV;
+    }
     CVW.init();
 }

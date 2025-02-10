@@ -7,6 +7,9 @@
 #include <ctime>
 #include <sstream>
 
+#include <iterator> //shuffle
+#include <random>
+
 
 
 string operator/(string const& c1, string const& c2);
@@ -48,6 +51,9 @@ FileSystemInterface::FileSystemInterface()
 {
     nCrossVal=N_DATASETS_CROSSVALIDATION_DEFAULT;
     limitRAMGb=GB_PARTIAL_SCORES_DEFAULT;
+    useSubsetCV=false;
+    nSubsetCV=0;
+    allScoresFitInMem=false;
 }
 void FileSystemInterface::init(string classifierPath)
 {
@@ -65,6 +71,8 @@ void FileSystemInterface::init(string classifierPath)
     }
     if(loadDataset())
     {
+        if(useSubsetCV)
+            resampleCVIdxs(); //Reduces to a subset the cv indexes 
         setRemainingMetadataFields();
         setPartialScoresSize(limitRAMGb);
     }
@@ -77,7 +85,10 @@ void FileSystemInterface::setPartialScoresSize(float nGygas)
     unsigned long sizePerRead = datasetMetadata.nSparsity*(sizeof(float)+sizeof(unsigned int)); //Number of bytes that one score for reads occupies, considering probs and Ids!
     nReadsPartialScores=(unsigned int)(sizeForPartialScores/sizePerRead);
     if(nReadsPartialScores>nScoresTotal)
+    {
         nReadsPartialScores=nScoresTotal; //We dont need to store more than 
+        allScoresFitInMem=true; //We can fit all the scores of the disk in our working memory, can reduce drastically runtime.
+    }
     bufferSize=((unsigned long)(datasetMetadata.nSparsity))*((unsigned long)(nReadsPartialScores)); //How much we elements should reserve on each vector
     TopNScoresPartialFlattened.resize(bufferSize);
     TopNScoresIdsPartialFlattened.resize(bufferSize);
@@ -106,6 +117,35 @@ void FileSystemInterface::restartReading()
     TopNScoresIdsArrayStream.seekg(0, TopNScoresIdsArrayStream.beg);
     TopNScoresArrayStream.seekg(0, TopNScoresArrayStream.beg);
     finishedReading=false;
+}
+
+void FileSystemInterface::resampleCVIdxs()   
+{
+    vector<unsigned int> idxsToKeep,finalCvScoreIds; 
+    finalCvScoreIds.reserve(cvScoreIds[0].size());idxsToKeep.reserve(cvScoreIds[0].size());//Reserves size
+    for (unsigned int i = 0; i < cvScoreIds[0].size(); i++) 
+        idxsToKeep.push_back(i);  //np.arange(cvScoreIds[i].size())
+    
+    random_device rd; //For shuffling
+    mt19937 g(rd());
+    
+    
+    
+    for(int i = 0; i < nCrossVal; i++)
+    {
+        finalCvScoreIds.clear(); //Clears the final vector
+        shuffle(idxsToKeep.begin(), idxsToKeep.end(), g); //Shuffles the range
+        auto itBeg=idxsToKeep.begin();
+        auto itEnd=idxsToKeep.begin()+nSubsetCV;
+        vector<unsigned int> idxsToKeepSubset(itBeg,itEnd); //keeps nSubsetCV first items
+        sort(idxsToKeepSubset.begin(), idxsToKeepSubset.end()); //Puts them in order, so the order remains!
+        
+        for(unsigned int j = 0; j < nSubsetCV; j++)
+            finalCvScoreIds.push_back(cvScoreIds[i][idxsToKeepSubset[j]]); //gets those indexes of the bigger cvScoresId
+            
+        cvScoreIds[i]=finalCvScoreIds;
+    }
+    
 }
 
 void FileSystemInterface::saveCSV(string path, vector<string> &cols, vector<vector<string>> &content)
@@ -202,9 +242,9 @@ void FileSystemInterface::setRemainingMetadataFields()
     
 }
 
-unsigned int FileSystemInterface::nReadsToG(unsigned int nReads)
+unsigned long FileSystemInterface::nReadsToG(unsigned long nReads)
 {
-    return nReads*datasetMetadata.nSparsity*sizeof(float); //Its the same as the uint32, but if we would use different types this would change...
+    return nReads*((unsigned long)datasetMetadata.nSparsity)*sizeof(float); //Its the same as the uint32, but if we would use different types this would change...
 }
 
 FileSystemInterface::~FileSystemInterface()

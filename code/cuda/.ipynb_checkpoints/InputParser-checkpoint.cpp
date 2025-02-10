@@ -52,6 +52,7 @@ bool InputParser::parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, c
     if((*pKeyIndex+1<argc) && argv[*pKeyIndex+1][0]!='-') //If there was no value for this, or there is a key after a key, it breaks
     {
         string valueStr(argv[*pKeyIndex+1]);
+        retVal=true;
         if(currKey=="-m")
             limitRAMGb=stof(valueStr);
         if(currKey=="-M")
@@ -66,7 +67,13 @@ bool InputParser::parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, c
             nEpochs=atoi(valueStr.c_str());
         if(currKey=="-t")
             nTreadsPerBlock=atoi(valueStr.c_str());
+        if(currKey=="-d")
+            deviceN=atoi(valueStr.c_str());
+        if(currKey=="-s")
+            nSubsetCV=atoi(valueStr.c_str());
+        (*pKeyIndex)++; //Advances to the next key
     }
+    return retVal;
 }
 bool InputParser::keyExists(string str)
 {
@@ -84,9 +91,11 @@ void InputParser::init()
     vector<array<string,N_DESCRIPTORS>> aux({ {"-m",   "Memory limit on RAM" ,     "8"       },
                       {"-M",   "Memory limit on GPU" ,     "7"       },
                       {"-n",       "N sparsity"      ,     "30"      },
-                      {"-o",       "Use oracle"      ,      "0"      }, //Uses oracle. value  is the probability of error
+                      {"-o",       "Use oracle"      ,      "0"      }, //Uses oracle. value  is the probability of error, p>0 activates oracle
                       {"-c","Cross validation datasets",   "10"      },
                       {"-e",     "Number of epochs"  ,     "60"      },
+                      {"-d",         "GPU Device"     ,    "0"      },
+                      {"-s","Subset samples cross validation" ,    "0"      }, //Reduces the amount of samples of each cv, so it can run faster. 0 means no reduction
                       {"-v",         "Verbose"       ,     "No"      }, //No value, using the key will make the code verbose.
                       {"-t","Number of threads per block", "16"      }});
     
@@ -98,7 +107,9 @@ void InputParser::init()
     nEpochs=atoi(keyDescriptions[getKeyIdx("Number of epochs")][DEFAULT_VALUE].c_str());
     nTreadsPerBlock=atoi(keyDescriptions[getKeyIdx("Number of threads per block")][DEFAULT_VALUE].c_str());
     nCrossValDs=atoi(keyDescriptions[getKeyIdx("Cross validation datasets")][DEFAULT_VALUE].c_str());
+    deviceN=atoi(keyDescriptions[getKeyIdx("GPU Device")][DEFAULT_VALUE].c_str());
     nSparsity=atoi(keyDescriptions[getKeyIdx("N sparsity")][DEFAULT_VALUE].c_str());
+    nSubsetCV=atoi(keyDescriptions[getKeyIdx("Subset samples cross validation")][DEFAULT_VALUE].c_str());
     limitRAMGb=stof(keyDescriptions[getKeyIdx("Memory limit on RAM")][DEFAULT_VALUE]);
     limitMemGPUGb=stof(keyDescriptions[getKeyIdx("Memory limit on GPU")][DEFAULT_VALUE]);
     useOracle=false;

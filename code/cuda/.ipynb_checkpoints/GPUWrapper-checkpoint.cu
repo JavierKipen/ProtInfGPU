@@ -13,8 +13,10 @@ GPUWrapper::~GPUWrapper()
 }
 
 
-void GPUWrapper::init(DatasetMetadata *pDatasetMetadata)
+void GPUWrapper::init(DatasetMetadata *pDatasetMetadata,unsigned int deviceN)
 {
+    cudaSetDevice(deviceN); //Sets the device to do the calculations
+    gCM.init();
     this->pDatasetMetadata=pDatasetMetadata;
     auxUpdates.resize(pDatasetMetadata->nProt,0); //aux vector to sum up the updates
 }

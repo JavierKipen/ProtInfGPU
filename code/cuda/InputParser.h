@@ -49,7 +49,7 @@ class InputParser{  //Class to handle the data movement (later would be also bin
         bool keyExists(string str);
     
         string inputDir,outputDir; //Directories.
-        unsigned int nEpochs,nCrossValDs,nTreadsPerBlock,nSparsity;
+        unsigned int nEpochs,nCrossValDs,nTreadsPerBlock,nSparsity,deviceN,nSubsetCV;
         bool useOracle,verbose;
         float oraclePErr,limitRAMGb,limitMemGPUGb;
     
