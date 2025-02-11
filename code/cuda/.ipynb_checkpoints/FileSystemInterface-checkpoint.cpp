@@ -210,6 +210,20 @@ bool FileSystemInterface::loadDataset()
     TopNScoresIdsArrayStream.open(TopNScoresIdsArrayPath, ios::binary);
     TopNScoresArrayStream.seekg(0, TopNScoresArrayStream.beg);
     TopNScoresIdsArrayStream.seekg(0, TopNScoresIdsArrayStream.beg);
+    
+    for(unsigned int i=0;i<datasetMetadata.probFluExpForI.size();i++)
+    {
+        if(datasetMetadata.probFluExpForI[i]==0)
+        {
+            cout << "Zero found in probFluExpForI, this should not happen!" << endl;
+        }
+        /*if(datasetMetadata.fluExpIdForI[i]==2468)
+        {
+            cout << "Found fluexp 2468, with prob " << to_string(datasetMetadata.probFluExpForI[i]) << " In pos i= " << to_string(i) << endl;
+        }*/
+    }
+        
+    
     return retVal;
 }
 

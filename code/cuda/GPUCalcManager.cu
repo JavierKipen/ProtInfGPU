@@ -1,5 +1,6 @@
 #include "GPUCalcManager.h"
-
+#include <iostream>
+#include <vector>
 
 using namespace std;
 
@@ -47,14 +48,14 @@ __global__ void invertVect(float * vec,unsigned int len){
 
 __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
 {
-    const unsigned int threadId = blockIdx.x*blockDim.x + threadIdx.x;
+    const unsigned long threadId = (unsigned long)blockIdx.x*(unsigned long)blockDim.x + (unsigned long)threadIdx.x;
     
     float pRemRead,PCurrProtGivenReadRel;
     float * d_TopNFluExpScoresRead, *d_PIgXRelRead;
     unsigned int *d_TopNFluExpIdRead,FluExpIdOffset;
     
 
-    if(threadId<d_devData->nReadsProcess*d_devData->nProt) //Only threads within the desired range.
+    if( threadId< (d_devData->nReadsProcess*d_devData->nProt) ) //Only threads within the desired range.
     {
         const unsigned int currRead = threadId/d_devData->nProt; //gets currRead and currProt from thread Id (could still have mix within same block, but it is small)
         const unsigned int currProt = threadId%d_devData->nProt;
@@ -62,7 +63,7 @@ __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
         pRemRead=d_devData->d_pRem[currRead];
         d_TopNFluExpScoresRead=&(d_devData->d_TopNFluExpScores[currRead*d_devData->nSparsity]); //Pointing towards current read flu scores
         d_TopNFluExpIdRead=&(d_devData->d_TopNFluExpId[currRead*d_devData->nSparsity]); //Pointing towards current read flu scores ids
-        d_PIgXRelRead=&(d_devData->d_MatAux[currRead*d_devData->nProt+currProt]); //Pointing towards the point in the matrix to be calculated.
+        d_PIgXRelRead=&(d_devData->d_MatAux[(currRead*d_devData->nProt)+currProt]); //Pointing towards the point in the matrix to be calculated.
         
         //Getting the start of the flu exps prob for the curr protein
         FluExpIdOffset=0; //Starts from the beggining of the fluexp array
@@ -80,6 +81,39 @@ __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
     }
 }
 
+bool checkNan(float *pArrayGPU, unsigned long len)
+{
+    bool retVal=false;
+    vector<float> auxVec(len,0);
+    cudaMemcpy(auxVec.data(), pArrayGPU, sizeof(float)*len, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
+    for(unsigned int i=0;i<len;i++)
+    {
+        if(isnan(auxVec[i]) || isinf(auxVec[i]))
+        {
+            cout << "Element " + to_string(i) + " is not a number." << endl;
+            retVal=true;
+        }    
+    }
+    return retVal;
+}
+
+bool checkZeroRows(float *pMatAux, unsigned long nProt,unsigned long nReads)
+{
+    bool retVal=false;
+    unsigned long len = nReads*nProt;
+    vector<float> auxVec(len,0);
+    cudaMemcpy(auxVec.data(), pMatAux, sizeof(float)*len, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
+    for(unsigned int i=0;i<nReads;i++)
+    {
+        bool allReadZeros=true;
+        for(unsigned int j=0;j<nProt;j++)
+            if(auxVec[i*nProt+j]!=0)
+                allReadZeros=false;
+        if(allReadZeros)
+            cout << "Row number: " << to_string(i) << " had all probs eq to zero."<< endl;
+    }
+    return retVal;
+}
 
 //Class functions
 
@@ -100,10 +134,18 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
     this->pdevData=pdevData;
     this->d_pdevData=d_pdevData;
     calcPRem(); //Gets normalization factor of sparse matrix
+    //checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
     calcPXgIRel(); //PXgIRel is obtained
+    
+    //checkZeroRows(pdevData->d_MatAux, pdevData->nProt,pdevData->nReadsProcess);
+    
+    //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
     calcPXIRel(); //The joint relative matrix is normalized
+    //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
     PXIRelSumRows(); //The sums over the the rows are calculated for normalization and alpha calc.
+    //checkNan(pdevData->d_VecAux,pdevData->nReadsProcess);
     calcAlphas(); //Multiplies the normalized matrix with the 1/sum for normalizations
+    //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
     sumAlphas(); //Sums all alphas through reads for the updates to p_I estimation!
 }
 void GPUCalcManager::sumAlphas()
