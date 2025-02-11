@@ -1,0 +1,13 @@
+Nepochs: 60
+Runtime: 19
+NSparsity: 1
+NThreadsPerBlock: 128
+NBytesUseGPU: 32212254720
+MaxReadsGPU: 500000
+NcrossVal: 10
+NsubsetCV: 500000
+NtotalReads: 500000
+Nprot: 152
+NReadsInRam: 2468000
+Oracle: 1
+Oracle Perr: 0.500000

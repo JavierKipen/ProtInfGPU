@@ -97,7 +97,7 @@ void InputParser::init()
                       {"-d",         "GPU Device"     ,    "0"      },
                       {"-s","Subset samples cross validation" ,    "0"      }, //Reduces the amount of samples of each cv, so it can run faster. 0 means no reduction
                       {"-v",         "Verbose"       ,     "No"      }, //No value, using the key will make the code verbose.
-                      {"-t","Number of threads per block", "16"      }});
+                      {"-t","Number of threads per block", "128"      }});
     
     keyDescriptions=aux;
     inputDir = DEFAULT_INPUT_PATH;

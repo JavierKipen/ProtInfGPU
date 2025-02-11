@@ -119,13 +119,13 @@ bool checkZeroRows(float *pMatAux, unsigned long nProt,unsigned long nReads)
 
 GPUCalcManager::GPUCalcManager()
 {
-    
+    NThreadsPerBlock=DEFAULT_N_THREADS_PER_BLOCK;
 }
 
 void GPUCalcManager::init()
 {
     cublasCreate(&cuBlasHandle);
-    NThreadsPerBlock=DEFAULT_N_THREADS_PER_BLOCK;
+    
 }
 
 
