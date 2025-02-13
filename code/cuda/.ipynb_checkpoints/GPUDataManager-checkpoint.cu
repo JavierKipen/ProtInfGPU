@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>    // std::max
 
+
 using namespace std;
 
 GPUDataManager::GPUDataManager()
@@ -15,12 +16,12 @@ bool GPUDataManager::allocateForNumberOfReads(DatasetMetadata *pDM,DeviceData *p
     unsigned long nReadsMax=pDM->nReadsTotal;//In NReads Total is actually stored the number of reads we are using for computing!
     onesVecLen=std::max({nReadsMax,(unsigned long)pDM->nSparsity,(unsigned long)pDM->nProt}); 
     if(!cudaMalloc(&(pdevData->d_NFexpForI), sizeof(unsigned int)*pDM->nProt))
-        if(!cudaMalloc(&(pdevData->d_TopNFluExpId), sizeof(unsigned int)*nReadsMax*pDM->nSparsity))
+        if(!cudaMalloc(&(pdevData->d_TopNFluExpId), (unsigned long)sizeof(unsigned int)*nReadsMax*(unsigned long)pDM->nSparsity))
             if(!cudaMalloc(&(pdevData->d_FexpIdForI), sizeof(unsigned int)*pDM->fluExpIdForI.size()))
                 if(!cudaMalloc(&(pdevData->d_PFexpForI), sizeof(float)*pDM->fluExpIdForI.size()))
-                    if(!cudaMalloc(&(pdevData->d_TopNFluExpScores), sizeof(float)*nReadsMax*pDM->nSparsity))
+                    if(!cudaMalloc(&(pdevData->d_TopNFluExpScores), (unsigned long)sizeof(float)*nReadsMax*(unsigned long)pDM->nSparsity))
                         if(!cudaMalloc(&(pdevData->d_pRem), sizeof(float)*nReadsMax))
-                            if(!cudaMalloc(&(pdevData->d_MatAux), sizeof(float)*nReadsMax*pDM->nProt))
+                            if(!cudaMalloc(&(pdevData->d_MatAux), (unsigned long)sizeof(float)*nReadsMax*(unsigned long)pDM->nProt))
                                 if(!cudaMalloc(&(pdevData->d_ones), sizeof(float)*onesVecLen))
                                     if(!cudaMalloc(d_ppdevData, sizeof(*pdevData)))
                                         if(!cudaMalloc(&(pdevData->d_PIEst), sizeof(float)*pDM->nProt))

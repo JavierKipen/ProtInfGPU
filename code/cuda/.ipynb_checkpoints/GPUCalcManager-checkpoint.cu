@@ -3,6 +3,7 @@
 #include <vector>
 #include <cassert>
 
+
 using namespace std;
 
 __global__ void PIgXRelThreadPerRead(DeviceData *d_devData);
@@ -121,6 +122,12 @@ bool checkZeroRows(float *pMatAux, unsigned long nProt,unsigned long nReads)
 GPUCalcManager::GPUCalcManager()
 {
     NThreadsPerBlock=DEFAULT_N_THREADS_PER_BLOCK;
+    
+    map<unsigned int, unsigned long> aux={
+            { 152   ,    1000000 },
+            { 2000  ,     100000 },
+        };
+    batchingLenForNProt=aux; //Set the batching map, these values were set after trial and error.
 }
 
 void GPUCalcManager::init()
@@ -171,7 +178,7 @@ void GPUCalcManager::sumAlphas()
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_VecAux, 1);
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!5 Try reducing the number of reads on GPU by reducing memory usage.");
 
 }
 void GPUCalcManager::calcAlphas()
@@ -189,34 +196,37 @@ void GPUCalcManager::calcAlphas()
                 pdevData->d_VecAux, 1,
                 pdevData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
     
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!4 Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 void GPUCalcManager::PXIRelSumRows()
 {
     float alpha,beta;
-    unsigned int m,n;
+    unsigned int m;
     cublasOperation_t trans;
     
     //Parameters fixing
     alpha=1.0f;beta=0; 
     trans=CUBLAS_OP_T; //Transpose  
     m=pdevData->nProt; //Cublas uses column-major notation, so we using this notation we can do our original operation
-    n=pdevData->nReadsProcess;
+    //n=pdevData->nReadsProcess; //This would be the real size of the matrix, but we will batch it.
     
-    size_t free_mem, total_mem;
-    cudaMemGetInfo(&free_mem, &total_mem);
-    std::cout << "Free memory before call: " << free_mem / (1024 * 1024) << " MB\n";
 
+    //This operation is batched because gemv failed for very high N when using 152Prot!
+    unsigned long batchSize=batchingLenForNProt[pdevData->nProt]; 
+    for (unsigned long j = 0; j < pdevData->nReadsProcess; j += batchSize) 
+    {
+        unsigned int current_n = std::min(batchSize, pdevData->nReadsProcess - j); //n of the matrix to process
 
-    cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
-                                m, n,
+        cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+                                m, current_n,
                                 &alpha,
-                                pdevData->d_MatAux, m, 
+                                pdevData->d_MatAux + (j*m), m, 
                                 pdevData->d_ones, 1,
                                 &beta,
-                                pdevData->d_VecAux, 1);
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+                                pdevData->d_VecAux + j, 1);
+        assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!3 Try reducing the number of reads on GPU by reducing memory usage.");
+    }
     //Since we need 1/sum, we now invert the obtained vector with a custom kernel:
     unsigned int n_threads = pdevData->nReadsProcess;
     unsigned int n_blocks = (n_threads/NThreadsPerBlock)+1;
@@ -238,7 +248,7 @@ void GPUCalcManager::calcPXIRel()
                 pdevData->d_MatAux, m,
                 pdevData->d_PIEst, 1,
                 pdevData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!2 Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 
@@ -272,6 +282,7 @@ void GPUCalcManager::calcPRem()
     n=pdevData->nReadsProcess;
     cudaMemcpy(pdevData->d_pRem, pdevData->d_ones, sizeof(float)*n, cudaMemcpyDeviceToDevice); //ones in beta, so we do 1-sum(ps).
     
+    
     if(m==1) //easier calculation when one unique value is given
     {
         alpha= (-1);
@@ -292,7 +303,8 @@ void GPUCalcManager::calcPRem()
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_pRem, 1);//lda is number of columns
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+                                
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!1 Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 

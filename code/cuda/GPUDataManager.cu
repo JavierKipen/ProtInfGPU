@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>    // std::max
 
+
 using namespace std;
 
 GPUDataManager::GPUDataManager()
