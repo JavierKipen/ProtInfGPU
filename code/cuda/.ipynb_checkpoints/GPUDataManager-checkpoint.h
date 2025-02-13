@@ -22,7 +22,7 @@ class GPUDataManager {  //Class to handle the data allocation and movement for t
         void freeData(DeviceData *pdevData, DeviceData *d_pdevData);
     private:
         void createOnesVec(DeviceData *pdevData);
-        unsigned int onesVecLen;
+        unsigned long onesVecLen;
     
 };
 

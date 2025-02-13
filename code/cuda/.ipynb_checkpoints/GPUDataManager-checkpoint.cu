@@ -12,8 +12,8 @@ GPUDataManager::GPUDataManager()
 bool GPUDataManager::allocateForNumberOfReads(DatasetMetadata *pDM,DeviceData *pdevData, DeviceData **d_ppdevData)
 {
     bool retVal=false;
-    unsigned int nReadsMax=pDM->nReadsTotal;//In NReads Total is actually stored the number of reads we are using for computing!
-    onesVecLen=std::max({nReadsMax,pDM->nSparsity,pDM->nProt}); 
+    unsigned long nReadsMax=pDM->nReadsTotal;//In NReads Total is actually stored the number of reads we are using for computing!
+    onesVecLen=std::max({nReadsMax,(unsigned long)pDM->nSparsity,(unsigned long)pDM->nProt}); 
     if(!cudaMalloc(&(pdevData->d_NFexpForI), sizeof(unsigned int)*pDM->nProt))
         if(!cudaMalloc(&(pdevData->d_TopNFluExpId), sizeof(unsigned int)*nReadsMax*pDM->nSparsity))
             if(!cudaMalloc(&(pdevData->d_FexpIdForI), sizeof(unsigned int)*pDM->fluExpIdForI.size()))
@@ -23,7 +23,7 @@ bool GPUDataManager::allocateForNumberOfReads(DatasetMetadata *pDM,DeviceData *p
                             if(!cudaMalloc(&(pdevData->d_MatAux), sizeof(float)*nReadsMax*pDM->nProt))
                                 if(!cudaMalloc(&(pdevData->d_ones), sizeof(float)*onesVecLen))
                                     if(!cudaMalloc(d_ppdevData, sizeof(*pdevData)))
-                                        if(!cudaMalloc(&(pdevData->d_PIEst), sizeof(float)*nReadsMax))
+                                        if(!cudaMalloc(&(pdevData->d_PIEst), sizeof(float)*pDM->nProt))
                                             if(!cudaMalloc(&(pdevData->d_VecAux), sizeof(float)*onesVecLen))
                                                 retVal=true;
     return retVal;
@@ -74,6 +74,7 @@ void GPUDataManager::createOnesVec(DeviceData *pdevData)
 {
     vector<float> ones(onesVecLen, 1);
     cudaMemcpy(pdevData->d_ones, ones.data(), sizeof(float)*onesVecLen, cudaMemcpyHostToDevice);
+    cudaMemcpy(pdevData->d_VecAux, ones.data(), sizeof(float)*onesVecLen, cudaMemcpyHostToDevice); //We also initialize dvecAux
 }
 void GPUDataManager::freeData(DeviceData *pdevData, DeviceData *d_pdevData)
 {

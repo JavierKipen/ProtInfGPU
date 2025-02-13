@@ -1,6 +1,7 @@
 #include "GPUCalcManager.h"
 #include <iostream>
 #include <vector>
+#include <cassert>
 
 using namespace std;
 
@@ -170,6 +171,7 @@ void GPUCalcManager::sumAlphas()
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_VecAux, 1);
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
 
 }
 void GPUCalcManager::calcAlphas()
@@ -186,6 +188,8 @@ void GPUCalcManager::calcAlphas()
                 pdevData->d_MatAux, m,
                 pdevData->d_VecAux, 1,
                 pdevData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
+    
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 void GPUCalcManager::PXIRelSumRows()
@@ -200,7 +204,10 @@ void GPUCalcManager::PXIRelSumRows()
     m=pdevData->nProt; //Cublas uses column-major notation, so we using this notation we can do our original operation
     n=pdevData->nReadsProcess;
     
-    
+    size_t free_mem, total_mem;
+    cudaMemGetInfo(&free_mem, &total_mem);
+    std::cout << "Free memory before call: " << free_mem / (1024 * 1024) << " MB\n";
+
 
     cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
                                 m, n,
@@ -209,6 +216,7 @@ void GPUCalcManager::PXIRelSumRows()
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_VecAux, 1);
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
     //Since we need 1/sum, we now invert the obtained vector with a custom kernel:
     unsigned int n_threads = pdevData->nReadsProcess;
     unsigned int n_blocks = (n_threads/NThreadsPerBlock)+1;
@@ -230,6 +238,7 @@ void GPUCalcManager::calcPXIRel()
                 pdevData->d_MatAux, m,
                 pdevData->d_PIEst, 1,
                 pdevData->d_MatAux, m); //Documentation says that it is "in-place" if lda=ldc!
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 
@@ -263,15 +272,27 @@ void GPUCalcManager::calcPRem()
     n=pdevData->nReadsProcess;
     cudaMemcpy(pdevData->d_pRem, pdevData->d_ones, sizeof(float)*n, cudaMemcpyDeviceToDevice); //ones in beta, so we do 1-sum(ps).
     
-    
-    //gemv: y= (alpha)*op(A)@x+ beta*y; where A is mxn matrix, x and y are vectors nx1. With the parameters set we get y=1-np.sum(topNFluExpScores,axis=1)
-    cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+    if(m==1) //easier calculation when one unique value is given
+    {
+        alpha= (-1);
+        cuBlasStatus =  cublasSaxpy( cuBlasHandle, n,
+                                &alpha,
+                                pdevData->d_TopNFluExpScores, 1,
+                                pdevData->d_pRem, 1);
+        assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
+        cuBlasStatus =  cublasSscal(cuBlasHandle, n,
+                                &norm_factor,
+                                pdevData->d_pRem, 1);
+    }
+    else//gemv: y= (alpha)*op(A)@x+ beta*y; where A is mxn matrix, x and y are vectors nx1. With the parameters set we get y=1-np.sum(topNFluExpScores,axis=1)
+        cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
                                 m, n,
                                 &alpha,
                                 pdevData->d_TopNFluExpScores, m, 
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_pRem, 1);//lda is number of columns
+    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib! Try reducing the number of reads on GPU by reducing memory usage.");
 }
 
 

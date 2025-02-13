@@ -28,7 +28,9 @@ void GPUWrapper::allocateWorkingMemory(unsigned long nReadsPerUpdate)
 {
     DatasetMetadata aux = *pDatasetMetadata;
     aux.nReadsTotal=nReadsPerUpdate; //We set this amount of reads for the calculations!
-    gDM.allocateForNumberOfReads(&aux,&devData, &d_pdevData); //Allocates the memory to work with it
+    bool allocateRes=gDM.allocateForNumberOfReads(&aux,&devData, &d_pdevData); //Allocates the memory to work with it
+    if(!allocateRes)
+        cout << "Could not allocate in GPU!" <<endl;
     gDM.metadataToGPU(&aux,&devData, d_pdevData); //Sends the data that wont change during the run
     allocatedData=true; //Data has been allocated, then has to be freed in destruction.
 }
