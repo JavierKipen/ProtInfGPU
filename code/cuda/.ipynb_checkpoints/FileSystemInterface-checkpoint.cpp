@@ -55,8 +55,9 @@ FileSystemInterface::FileSystemInterface()
     nSubsetCV=0;
     allScoresFitInMem=false;
 }
-void FileSystemInterface::init(string classifierPath)
+void FileSystemInterface::init(string classifierPath, bool oracle)
 {
+    this->oracle=oracle;
     this->classifierPath=classifierPath;
     this->datasetPath=classifierPath.substr(0,classifierPath.find_last_of("/\\"));
     commonPath= datasetPath / "Common";
@@ -90,8 +91,11 @@ void FileSystemInterface::setPartialScoresSize(float nGygas)
         allScoresFitInMem=true; //We can fit all the scores of the disk in our working memory, can reduce drastically runtime.
     }
     bufferSize=((unsigned long)(datasetMetadata.nSparsity))*((unsigned long)(nReadsPartialScores)); //How much we elements should reserve on each vector
-    TopNScoresPartialFlattened.resize(bufferSize);
-    TopNScoresIdsPartialFlattened.resize(bufferSize);
+    if(!oracle) //Opens score files.
+    {
+        TopNScoresPartialFlattened.resize(bufferSize);
+        TopNScoresIdsPartialFlattened.resize(bufferSize);
+    }
 }
 void FileSystemInterface::readPartialScores()
 {
@@ -206,11 +210,15 @@ bool FileSystemInterface::loadDataset()
         retVal&=readWholeArray(cvScoreIds[i],cvScoreIdsPath[i]);
         retVal&=readWholeArray(cvTrueProtDist[i],cdTrueProtDistPath[i]);
     }
-    TopNScoresArrayStream.open(TopNScoresArrayPath, ios::binary); //Opens the scores files, doesnt load them!
-    TopNScoresIdsArrayStream.open(TopNScoresIdsArrayPath, ios::binary);
-    TopNScoresArrayStream.seekg(0, TopNScoresArrayStream.beg);
-    TopNScoresIdsArrayStream.seekg(0, TopNScoresIdsArrayStream.beg);
     
+    if(!oracle) //Opens score files.
+    {
+        TopNScoresArrayStream.open(TopNScoresArrayPath, ios::binary); //Opens the scores files, doesnt load them!
+        TopNScoresIdsArrayStream.open(TopNScoresIdsArrayPath, ios::binary);
+        TopNScoresArrayStream.seekg(0, TopNScoresArrayStream.beg);
+        TopNScoresIdsArrayStream.seekg(0, TopNScoresIdsArrayStream.beg);
+    }
+
     for(unsigned int i=0;i<datasetMetadata.probFluExpForI.size();i++)
     {
         if(datasetMetadata.probFluExpForI[i]==0)

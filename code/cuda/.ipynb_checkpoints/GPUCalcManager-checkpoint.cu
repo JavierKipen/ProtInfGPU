@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <limits>
 
 
 using namespace std;
@@ -57,15 +58,15 @@ __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
     unsigned int *d_TopNFluExpIdRead,FluExpIdOffset;
     
 
-    if( threadId< (d_devData->nReadsProcess*d_devData->nProt) ) //Only threads within the desired range.
+    if( threadId< ((unsigned long)d_devData->nReadsProcess*(unsigned long)d_devData->nProt) ) //Only threads within the desired range.
     {
         const unsigned int currRead = threadId/d_devData->nProt; //gets currRead and currProt from thread Id (could still have mix within same block, but it is small)
         const unsigned int currProt = threadId%d_devData->nProt;
         
         pRemRead=d_devData->d_pRem[currRead];
-        d_TopNFluExpScoresRead=&(d_devData->d_TopNFluExpScores[currRead*d_devData->nSparsity]); //Pointing towards current read flu scores
-        d_TopNFluExpIdRead=&(d_devData->d_TopNFluExpId[currRead*d_devData->nSparsity]); //Pointing towards current read flu scores ids
-        d_PIgXRelRead=&(d_devData->d_MatAux[(currRead*d_devData->nProt)+currProt]); //Pointing towards the point in the matrix to be calculated.
+        d_TopNFluExpScoresRead=&(d_devData->d_TopNFluExpScores[(unsigned long)currRead*(unsigned long)d_devData->nSparsity]); //Pointing towards current read flu scores
+        d_TopNFluExpIdRead=&(d_devData->d_TopNFluExpId[(unsigned long)currRead*(unsigned long)d_devData->nSparsity]); //Pointing towards current read flu scores ids
+        d_PIgXRelRead=&(d_devData->d_MatAux[((unsigned long)currRead*(unsigned long)d_devData->nProt)+(unsigned long)currProt]); //Pointing towards the point in the matrix to be calculated.
         
         //Getting the start of the flu exps prob for the curr protein
         FluExpIdOffset=0; //Starts from the beggining of the fluexp array
@@ -125,9 +126,28 @@ GPUCalcManager::GPUCalcManager()
     
     map<unsigned int, unsigned long> aux={
             { 152   ,    1000000 },
-            { 2000  ,     100000 },
+            { 50  ,      1000000 },
+            { 1000  ,     100000 }
         };
     batchingLenForNProt=aux; //Set the batching map, these values were set after trial and error.
+    
+    minBatchSize = std::numeric_limits<unsigned long>::max();
+    for (const auto& pair : batchingLenForNProt) {
+        if (pair.second < minBatchSize) {
+            minBatchSize = pair.second;
+        }
+    }
+}
+
+unsigned long GPUCalcManager::retrieveBatch(unsigned int nProt) //I made a map for certain protein numbers I tried, but to cover unexpected cases is this function
+{
+    auto it = batchingLenForNProt.find(nProt);
+    if (it != batchingLenForNProt.end()) {
+        return it->second;  // Return value if key exists
+    }
+    // If key doesnt exist, minimum batch size is returned
+    return minBatchSize;
+
 }
 
 void GPUCalcManager::init()
@@ -165,11 +185,9 @@ void GPUCalcManager::sumAlphas()
     
     //Parameters fixing
     alpha=1;beta=0; 
-    trans=CUBLAS_OP_N; //Transpose  
+    trans=CUBLAS_OP_N; //No transpose
     m=pdevData->nProt; //Cublas uses column-major notation, so we using this notation we can do our original operation
-    n=pdevData->nReadsProcess;
-    
-    
+    n=pdevData->nReadsProcess; //We will batch it because it seems is not working neither for 1000Prot 5M reads.
 
     cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
                                 m, n,
@@ -181,6 +199,28 @@ void GPUCalcManager::sumAlphas()
     assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!5 Try reducing the number of reads on GPU by reducing memory usage.");
 
 }
+
+/* Approach with batching!
+    beta=1;
+    cudaError_t err= cudaMemset(pdevData->d_VecAux, 0, m * sizeof(float)); //Sets aux vec to zero to continue accumulating sums
+    
+    
+    unsigned long batchSize=retrieveBatch(pdevData->nProt); 
+    for (unsigned int i = 0; i < pdevData->nReadsProcess; i += batchSize) {
+        unsigned int currentBatchSize = min( (unsigned int)batchSize, pdevData->nReadsProcess - i); // Handle last batch
+
+        cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+                                    m, currentBatchSize,
+                                    &alpha,
+                                    pdevData->d_MatAux + i * m, m,  // Offset matrix by i * m
+                                    pdevData->d_ones , 1,         // Offset ones vector
+                                    &beta,
+                                    pdevData->d_VecAux, 1);
+
+        assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation!");
+    }
+*/
+
 void GPUCalcManager::calcAlphas()
 {
     int m,n;
@@ -213,7 +253,7 @@ void GPUCalcManager::PXIRelSumRows()
     
 
     //This operation is batched because gemv failed for very high N when using 152Prot!
-    unsigned long batchSize=batchingLenForNProt[pdevData->nProt]; 
+    unsigned long batchSize=retrieveBatch(pdevData->nProt); 
     for (unsigned long j = 0; j < pdevData->nReadsProcess; j += batchSize) 
     {
         unsigned int current_n = std::min(batchSize, pdevData->nReadsProcess - j); //n of the matrix to process
@@ -258,8 +298,8 @@ void GPUCalcManager::calcPXgIRel() //Assumes P_rem already calculated.
     unsigned int n_blocks= (devData->nReadsProcess/NThreadsPerBlock)+1;
     PIgXRelThreadPerRead<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
     */
-    unsigned int n_threads = pdevData->nReadsProcess*pdevData->nProt;
-    unsigned int n_blocks = (n_threads/NThreadsPerBlock)+1;
+    unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess * (unsigned long)pdevData->nProt);
+    unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
     PIgXRelThreadPerReadPerProt<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
     
     cudaDeviceSynchronize();

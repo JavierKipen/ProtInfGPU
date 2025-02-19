@@ -17,7 +17,7 @@ CrossValWrapper::~CrossValWrapper()
 void CrossValWrapper::initDefault(string outFolder,string inFolder)
 {
     outFolderPath=outFolder;
-    FSI.init(inFolder);
+    FSI.init(inFolder,oracle);
     experimentFolder=FSI.createExperimentFolder(outFolder);
     idToCvScoreIdsEnd.resize(FSI.nCrossVal,0);idToCvScoreIdsStart.resize(FSI.nCrossVal,0);
     //CM.setMetadata(); //Data To configure the processing
@@ -48,7 +48,7 @@ void CrossValWrapper::initDefault(string outFolder,string inFolder)
 
 void CrossValWrapper::init() //This init assumes that some variables have already been set (input and output path, nsparsity,nCrossVal, nepochs
 {
-    FSI.init(inputFolderPath);
+    FSI.init(inputFolderPath,oracle);
     experimentFolder=FSI.createExperimentFolder(outFolderPath);
     idToCvScoreIdsEnd.resize(FSI.nCrossVal,0);idToCvScoreIdsStart.resize(FSI.nCrossVal,0);
     if(oracle)

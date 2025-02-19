@@ -19,6 +19,7 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         void calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevData); //Assumes data is loaded on device, then calculates the update
         unsigned int NThreadsPerBlock;
         std::map<unsigned int, unsigned long> batchingLenForNProt; //Keeps the batching lengths for the lengths of proteins
+        unsigned long minBatchSize;
     private:
         DeviceData *pdevData, *d_pdevData; //p to dev data both on device and host, save on the call to pass within the functions easier.
         void sumAlphas();
@@ -27,6 +28,7 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         void calcPXIRel();
         void calcPXgIRel();
         void calcPRem();
+        unsigned long retrieveBatch(unsigned int nProt);
         cublasHandle_t cuBlasHandle;
         cublasStatus_t cuBlasStatus; //Cublas status for debugging/error printing
         

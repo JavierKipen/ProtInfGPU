@@ -21,7 +21,7 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
     public:
         FileSystemInterface(); 
         ~FileSystemInterface();
-        void init(string classifierPath);
+        void init(string classifierPath,bool oracle);
         void setPartialScoresSize(float nGygas); //Sets how many gygas are used to store partially the scores.
         void readPartialScores(); //Loads in the vectors the next part of the scores.
         void restartReading(); //Starts reading the scores from the beginning of the file.
@@ -36,6 +36,8 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         unsigned long nScoresElementsInMemory,nReadsInMemory;
         unsigned int nReadsPartialScores; //How many reads are then stored
         unsigned int nCrossVal,nScoresTotal,nSubsetCV;
+    
+        
 
         float limitRAMGb;
         DatasetMetadata datasetMetadata;
@@ -44,6 +46,7 @@ class FileSystemInterface {  //Class to abstract from the used filesystem to loa
         vector<vector<float>> cvTrueProtDist; 
         vector<float> TopNScoresPartialFlattened;
         vector<unsigned int> TopNScoresIdsPartialFlattened;
+        bool oracle; //When we are running an oracle mod, some things are not needed to be set/loaded
     private:
         unsigned long nReadsToG(unsigned long  nReads);
         bool loadDataset(); //Loads all the info of the dataset except for the scores. Returns 0 if the dataset did not load correctly
