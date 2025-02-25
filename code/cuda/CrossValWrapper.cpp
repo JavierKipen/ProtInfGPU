@@ -3,6 +3,8 @@
 #include <numeric> //std::accumulate
 #include <algorithm> //std::for_each 
 #include <chrono>
+#include <iomanip>
+#include <sstream>
 
 CrossValWrapper::CrossValWrapper()
 {
@@ -257,11 +259,17 @@ void CrossValWrapper::exportResults()
 {
     vector<string> cols({"Epoch","Error mean", "Error std"});
     vector<string> epochs,errMeanStr,errStdStr;
+    
+     //https://stackoverflow.com/questions/29200635/convert-float-to-string-with-precision-number-of-decimal-digits-specified
+    
     for(unsigned int i=0;i<nEpochs;i++)
     {
+        stringstream ss1,ss2;
         epochs.push_back(to_string(i+1));
-        errMeanStr.push_back(to_string(ErrMean[i]));
-        errStdStr.push_back(to_string(ErrStd[i]));
+        ss1 << std::fixed << std::setprecision(10) << ErrMean[i];
+        ss2 << std::fixed << std::setprecision(10) << ErrStd[i];
+        errMeanStr.push_back(ss1.str());
+        errStdStr.push_back(ss2.str());
     }
     vector<vector<string>> outVector;
     outVector.push_back(epochs);outVector.push_back(errMeanStr);outVector.push_back(errStdStr);

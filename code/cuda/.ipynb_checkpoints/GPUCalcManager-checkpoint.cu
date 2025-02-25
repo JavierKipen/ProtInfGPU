@@ -89,7 +89,7 @@ bool checkNan(float *pArrayGPU, unsigned long len)
     bool retVal=false;
     vector<float> auxVec(len,0);
     cudaMemcpy(auxVec.data(), pArrayGPU, sizeof(float)*len, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
-    for(unsigned int i=0;i<len;i++)
+    for(unsigned long i=0;i<len;i++)
     {
         if(isnan(auxVec[i]) || isinf(auxVec[i]))
         {
@@ -106,10 +106,10 @@ bool checkZeroRows(float *pMatAux, unsigned long nProt,unsigned long nReads)
     unsigned long len = nReads*nProt;
     vector<float> auxVec(len,0);
     cudaMemcpy(auxVec.data(), pMatAux, sizeof(float)*len, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
-    for(unsigned int i=0;i<nReads;i++)
+    for(unsigned long i=0;i<nReads;i++)
     {
         bool allReadZeros=true;
-        for(unsigned int j=0;j<nProt;j++)
+        for(unsigned long j=0;j<nProt;j++)
             if(auxVec[i*nProt+j]!=0)
                 allReadZeros=false;
         if(allReadZeros)
@@ -127,7 +127,8 @@ GPUCalcManager::GPUCalcManager()
     map<unsigned int, unsigned long> aux={
             { 152   ,    1000000 },
             { 50  ,      1000000 },
-            { 1000  ,     100000 }
+            { 1000  ,     100000 },
+            { 20660  ,     10000 }
         };
     batchingLenForNProt=aux; //Set the batching map, these values were set after trial and error.
     
@@ -162,7 +163,7 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
     this->pdevData=pdevData;
     this->d_pdevData=d_pdevData;
     calcPRem(); //Gets normalization factor of sparse matrix
-    //checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
+    checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
     calcPXgIRel(); //PXgIRel is obtained
     
     //checkZeroRows(pdevData->d_MatAux, pdevData->nProt,pdevData->nReadsProcess);
@@ -175,28 +176,38 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
     calcAlphas(); //Multiplies the normalized matrix with the 1/sum for normalizations
     //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
     sumAlphas(); //Sums all alphas through reads for the updates to p_I estimation!
+    //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
+    
 }
 void GPUCalcManager::sumAlphas()
 {
 
     float alpha,beta;
-    unsigned int m,n;
+    unsigned int m;
     cublasOperation_t trans;
     
     //Parameters fixing
-    alpha=1;beta=0; 
+    alpha=1;
     trans=CUBLAS_OP_N; //No transpose
     m=pdevData->nProt; //Cublas uses column-major notation, so we using this notation we can do our original operation
-    n=pdevData->nReadsProcess; //We will batch it because it seems is not working neither for 1000Prot 5M reads.
+    beta=1;
+    cudaError_t err= cudaMemset(pdevData->d_VecAux, 0, m * sizeof(float)); //Sets aux vec to zero to continue accumulating sums
+    
+    
+    unsigned long batchSize=retrieveBatch(pdevData->nProt); 
+    for (unsigned int i = 0; i < pdevData->nReadsProcess; i += batchSize) {
+        unsigned int currentBatchSize = min( (unsigned int)batchSize, pdevData->nReadsProcess - i); // Handle last batch
 
-    cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
-                                m, n,
-                                &alpha,
-                                pdevData->d_MatAux, m, 
-                                pdevData->d_ones, 1,
-                                &beta,
-                                pdevData->d_VecAux, 1);
-    assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!5 Try reducing the number of reads on GPU by reducing memory usage.");
+        cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
+                                    m, currentBatchSize,
+                                    &alpha,
+                                    pdevData->d_MatAux + (unsigned long)i * (unsigned long)m, m,  // Offset matrix by i * m
+                                    pdevData->d_ones , 1,         // Offset ones vector
+                                    &beta,
+                                    pdevData->d_VecAux, 1);
+
+        assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation!");
+    }
 
 }
 
@@ -261,7 +272,7 @@ void GPUCalcManager::PXIRelSumRows()
         cuBlasStatus = cublasSgemv( cuBlasHandle, trans,
                                 m, current_n,
                                 &alpha,
-                                pdevData->d_MatAux + (j*m), m, 
+                                pdevData->d_MatAux + (j*(unsigned long)m), m, 
                                 pdevData->d_ones, 1,
                                 &beta,
                                 pdevData->d_VecAux + j, 1);
