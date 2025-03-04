@@ -1,0 +1,23 @@
+We are going to push the calculation of the EM. We have two cases that we divide
+
+
+***************Oracle (Nsparsity=1):****************************
+
+We can do a special kernels with an if Nsparsity=1. Here we ran a simulation with 1 million reads on proteome and we get the computational times of kernel vs whole update calculation:
+
+Calc total time: 36331.4ms. Kernel time: 36209.6ms
+Calc total time: 36137.1ms. Kernel time: 36015.3ms
+Calc total time: 20371.2ms. Kernel time: 20302.5ms
+Calc total time: 36292.4ms. Kernel time: 36170.6ms
+Calc total time: 36136.4ms. Kernel time: 36014.6ms
+Calc total time: 20371.4ms. Kernel time: 20302.6ms
+Calc total time: 36292ms. Kernel time: 36170.3ms
+Calc total time: 36136.1ms. Kernel time: 36014.3ms
+Calc total time: 20371.3ms. Kernel time: 20302.6ms
+
+
+With 2 million, it partitions the data in 3 sets, thats why the third is always shorter. But in general we get that the kernel is >300 times slower than the rest of calculations. Optimizing the kernel will lead to improved computing times. One rep takes around 36 seconds!.
+
+
+
+***************Non oracle ****************************

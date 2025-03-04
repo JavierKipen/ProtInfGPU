@@ -5,12 +5,14 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
 
 CrossValWrapper::CrossValWrapper()
 {
     oracle=false;
     oraclePErr=0;
     loadedData=false;
+    exportFinalEsts=true;
 }
 CrossValWrapper::~CrossValWrapper()
 {
@@ -275,6 +277,8 @@ void CrossValWrapper::exportResults()
     outVector.push_back(epochs);outVector.push_back(errMeanStr);outVector.push_back(errStdStr);
     FSI.saveCSV(experimentFolder+"/ErrVsEpochs.csv", cols, outVector);
     FSI.saveTxt(experimentFolder+"/RunConfig.txt",genRunConfigMsg());
+    if(exportFinalEsts)
+        exportEsts();
 }
 string CrossValWrapper::genRunConfigMsg()
 {
@@ -296,6 +300,42 @@ string CrossValWrapper::genRunConfigMsg()
     
     return out;
 }
+void CrossValWrapper::exportEsts()
+{
+    string filePath=experimentFolder+"/PhatYs.bin";
+    
+    ofstream outFile(filePath, std::ios::binary); // Open file in binary mode
+    if (outFile) 
+    {
+        for(unsigned int j=0;j<FSI.nCrossVal;j++) //Saves only for the crossval we used
+        {
+            vector<float> auxPY=PItoPY(pIEsts[j]); //Converts PI to PY
+            outFile.write(reinterpret_cast<const char*>(auxPY.data()), FSI.datasetMetadata.nProt * sizeof(float)); // Write data
+        }
+        
+        
+        outFile.close();
+    }
+    else
+        cout << "Error opening file: " << filePath << endl;
+
+    
+    
+}
+vector<float> CrossValWrapper::PItoPY(vector<float> pI)
+{
+    vector<float> pY(FSI.datasetMetadata.nProt,0); //Here we will store the estimated PY for each PI
+    float normVal=0;
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+    {
+        pY[j]= pI[j] / FSI.datasetMetadata.expNFluExpGenByI[j]; //Weights of each protein
+        normVal+=pY[j];
+    }
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        pY[j]/=normVal; //Normalizes pY
+    return pY;
+    
+}
 void CrossValWrapper::calcError(unsigned int epoch)
 {
     
@@ -303,15 +343,8 @@ void CrossValWrapper::calcError(unsigned int epoch)
     vector<float> MAE(FSI.nCrossVal,0); //Here we will store the error for each cross val dataset.
     for(unsigned int i=0;i<FSI.nCrossVal;i++)   //For every crossval run!
     {
-        float normVal=0;
+        vector<float> auxPY=PItoPY(pIEsts[i]); //Converts PI to PY
         float absAccErr=0;
-        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
-        {
-            auxPY[j]= pIEsts[i][j] / FSI.datasetMetadata.expNFluExpGenByI[j]; //Weights of each protein
-            normVal+=auxPY[j];
-        }
-        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
-            auxPY[j]/=normVal;
         for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
             absAccErr += std::abs(auxPY[j]-FSI.cvTrueProtDist[i][j]);
         MAE[i] = absAccErr / FSI.datasetMetadata.nProt; //The MAE of the run will be the accumulated absolute error, divided by the number of proteins

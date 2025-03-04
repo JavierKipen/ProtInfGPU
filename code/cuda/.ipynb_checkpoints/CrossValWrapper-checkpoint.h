@@ -48,7 +48,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         GPUWrapper gW;
         float limitMemGPUGb;
         DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
-        bool oracle,loadedData;
+        bool oracle,loadedData,exportFinalEsts;
         float oraclePErr;
     private:
         void loadOracleScores(vector<unsigned int> &IdxsCv);
@@ -68,7 +68,8 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         unsigned int timeProcessing;
         vector<float> topNFluExpScores; //Sparse vectors representation of the scores to compute
         vector<unsigned int> topNFluExpScoresIds; 
-        
+        void exportEsts(); //Exports the final estimations of distributions. 
+        vector<float> PItoPY(vector<float> pI);
     
         vector<unsigned int> idToCvScoreIdsStart,idToCvScoreIdsEnd; //For the loaded batch of the scores dataset on RAM, these vectores point to the beg and end of the scores that are valid
         vector<vector<unsigned int>> cvScoreIdsVecOfVec; //Used to partition the scoreIds of the crossval into vectors of size maxReadsToProcessInGpu, to send to gpu

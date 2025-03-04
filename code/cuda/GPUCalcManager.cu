@@ -3,6 +3,7 @@
 #include <vector>
 #include <cassert>
 #include <limits>
+#include <chrono>
 
 
 using namespace std;
@@ -162,9 +163,14 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
 {
     this->pdevData=pdevData;
     this->d_pdevData=d_pdevData;
+    auto t1 = chrono::high_resolution_clock::now();
+    
     calcPRem(); //Gets normalization factor of sparse matrix
-    checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
+    //checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
+    
+    auto t2 = chrono::high_resolution_clock::now();
     calcPXgIRel(); //PXgIRel is obtained
+    auto t3 = chrono::high_resolution_clock::now();
     
     //checkZeroRows(pdevData->d_MatAux, pdevData->nProt,pdevData->nReadsProcess);
     
@@ -177,6 +183,11 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
     //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
     sumAlphas(); //Sums all alphas through reads for the updates to p_I estimation!
     //checkNan(pdevData->d_MatAux,pdevData->nReadsProcess*pdevData->nProt);
+    auto t4 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> ms_total = t4 - t1;
+    std::chrono::duration<double, std::milli> ms_kernel = t3 - t2;
+    
+    //cout << "Calc total time: " << ms_total.count() << "ms. Kernel time: " << ms_kernel.count() <<"ms\n"; //Comment when not timing!
     
 }
 void GPUCalcManager::sumAlphas()
