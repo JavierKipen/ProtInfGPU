@@ -7,7 +7,8 @@
 int main(int argc, char** argv) {
     Wrapper wrapper;
     wrapper.init();
-    wrapper.timeBaseKernel();
+    //wrapper.timeBaseKernel();
+    wrapper.checkFewProtFewReadPerBlock();
     
     return 0;
 }

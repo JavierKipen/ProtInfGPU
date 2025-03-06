@@ -17,6 +17,7 @@ class GPUKernelManager {  //Class to handle the data movement (later would be al
         void init();
         void runBaseKernel(DeviceData *pdevData, DeviceData *d_pdevData);
         void calcPRem(DeviceData *pdevData, DeviceData *d_pdevData);
+        void runFewProtFewReadPerBlockOracle(DeviceData *pdevData, DeviceData *d_pdevData, unsigned int nProtPerBlock, unsigned int nReadPerBlock);
     
         unsigned int NThreadsPerBlock;
     private:

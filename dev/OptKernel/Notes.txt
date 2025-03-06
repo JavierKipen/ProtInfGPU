@@ -18,6 +18,20 @@ Calc total time: 20371.3ms. Kernel time: 20302.6ms
 
 With 2 million, it partitions the data in 3 sets, thats why the third is always shorter. But in general we get that the kernel is >300 times slower than the rest of calculations. Optimizing the kernel will lead to improved computing times. One rep takes around 36 seconds!.
 
+After reading a bit i think that I have to optimize memory usage. I can use shared memory for storing the P(Fe|I), and have many proteins in each block for many reads -> if they access similar memory places would be less races. Easiest way to group is to put in order number of proteins and select a few, but I have to be careful to pick how many proteins so it fits in the shared memory. In shared memory online says 48 kB -> 6144 entries. Then grouping by N in python we get:
+194 proteins together overpasses that limit. Lets keep it below that and try without any reordering. 
+
+Timing from 364853 ms to 4668.35 ms. BUT THIS WAS WITH DEBUG INFO. with -O3 compilation goes from 36037.2 ms to 4562.46 ms.
+
+And if we only copy the entries without prem? goes down to 279.235 ms .
+
+We first check the kernel with calculation of each item!
+
+Things to verify:
+
+- New PXgIRel does not have nans -> No NaN!
+- New PXgIRel does not have rows with whole zeroes! -> no Zero!
+- PXgIRel is equal to the one generated with our previous kernel 
 
 
 ***************Non oracle ****************************

@@ -21,7 +21,7 @@ class IOManager {  //Class to abstract from the used filesystem to load the data
         void setReadsMax(unsigned int nReads);
         void loadScores();
         void createOracleScores();
-        void saveTruePXgIrel(vector<float> &PXgIrel);
+        void saveTruePXgIrel(vector<float> &PXgIrel,string name);
         DatasetMetadata datasetMetadata;
     
         vector<float> topNFluExpScores,pIEsts; //Sparse vectors representation of the scores to compute
@@ -30,6 +30,7 @@ class IOManager {  //Class to abstract from the used filesystem to load the data
     private:
         
         string dataFolder;
+        string outDataFolder;
     
 };
 

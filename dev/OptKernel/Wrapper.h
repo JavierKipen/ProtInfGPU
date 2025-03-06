@@ -16,7 +16,10 @@ class Wrapper {
     
         void init();
         void timeBaseKernel();
+        void checkFewProtFewReadPerBlock();
     
+        void checkRowNonZero(vector<float> &mat,unsigned long nProt,unsigned long nReads);
+        void checkNansMat(vector<float> &mat);
     
         GPUDataManager gDM;
         GPUKernelManager gKM;

@@ -16,6 +16,7 @@ template<typename T> void saveToBinFile(string path, vector<T> &cont);
 IOManager::IOManager()
 {
     dataFolder="/home/jkipen/ProtInfGPU/dev/OptKernel/data";
+    outDataFolder="/home/jkipen/raid_storage/ProtInfGPU/data";
     oracle=true;
 }
 
@@ -78,11 +79,11 @@ void IOManager::createOracleScores()
     saveToBinFile(dataFolder / "TopNScoresIdOracle.bin", topNFluExpScoresIds);
 }
 
-void IOManager::saveTruePXgIrel(vector<float> &PXgIrel)
+void IOManager::saveTruePXgIrel(vector<float> &PXgIrel,string name)
 {
     if(oracle)
     {
-        saveToBinFile(dataFolder / "PXgIrelTrue.bin", PXgIrel);
+        saveToBinFile(outDataFolder / name, PXgIrel);
     }
     else
         assert( 0 && "TBD - Save result for non oracle");
