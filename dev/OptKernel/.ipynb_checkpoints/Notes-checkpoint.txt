@@ -31,7 +31,13 @@ Things to verify:
 
 - New PXgIRel does not have nans -> No NaN!
 - New PXgIRel does not have rows with whole zeroes! -> no Zero!
-- PXgIRel is equal to the one generated with our previous kernel 
+- PXgIRel is equal to the one generated with our previous kernel -> no Zero
 
+Lets go further. In the case of 279 is fast, but copying with a simple kernal the contriubtion of prem was still 4 seconds. I suspect is because of how memory is accesed. Will try to coordinate it better. Now it was 89ms, so it seems to work like that.
+
+I checked the copy of prem coordinated, and now it seems to be working. Lets see if it is the same output now as the other kernel!
+It seems to be the same now!! Great. We checked the sum of whole matrix and the first 1000 reads of matAux are equal. 
+
+I think with this we finished the optimization of Oracle, now we will try to add to the main code and see if it works correctly.
 
 ***************Non oracle ****************************

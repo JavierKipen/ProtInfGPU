@@ -19,6 +19,7 @@ class GPUDataManager {  //Class to handle the data allocation and movement for t
         void metadataToGPU(DatasetMetadata *pDM,DeviceData *pdevData, DeviceData *d_pdevData); //Loads in GPU the vectores that will remain unchanged with different data.
         void loadNewDataToGPU(PNewData pNewData,DeviceData *pdevData,DeviceData *d_pdevData); //Loads the data dependant variables to GPU.
         void retrieveOutput(float * updateVectorOut,DeviceData *devData); //Sends the data that wont change during the run
+        void retrieveOutput(float * updateVectorOut,DeviceData *devData,unsigned long nRows);
         void freeData(DeviceData *pdevData, DeviceData *d_pdevData);
     private:
         void createOnesVec(DeviceData *pdevData);

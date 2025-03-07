@@ -6,6 +6,7 @@
 #include <chrono>
 
 
+
 using namespace std;
 
 
@@ -18,6 +19,7 @@ using namespace std;
 __global__ void pRemKernel(DeviceData *d_devData);
 __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData);
 __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock);
+__global__ void PIgXReLPRemContribution(DeviceData *d_devData);
 
 //Class functions
 
@@ -30,6 +32,7 @@ GPUKernelManager::GPUKernelManager()
 void GPUKernelManager::init()
 {
     cudaSetDevice(GPU_DEVICE); //Sets the device to do the calculations
+    
 }
 
 
@@ -51,7 +54,10 @@ void GPUKernelManager::runFewProtFewReadPerBlockOracle(DeviceData *pdevData, Dev
     cudaDeviceSynchronize();
 }
 
-
+void GPUKernelManager::initCublas()
+{
+    //cublasCreate(&cuBlasHandle);
+}
 
 void GPUKernelManager::calcPRem(DeviceData *pdevData, DeviceData *d_pdevData)
 {
@@ -59,8 +65,29 @@ void GPUKernelManager::calcPRem(DeviceData *pdevData, DeviceData *d_pdevData)
     unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
     pRemKernel<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
     cudaDeviceSynchronize();
+    
+    /*
+    cublasStatus_t result= cublasSgbmv(cuBlasHandle, cublasOperation_t trans,
+            int m, int n, int kl, int ku,
+            const float *alpha,
+            const float *A, int lda,
+            const float *x, int incx,
+            const float *beta,
+            float *y, int incy)*/
 }
 
+
+void GPUKernelManager::setPRemContribution(DeviceData *pdevData, DeviceData *d_pdevData)
+{/*
+    unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess);
+    unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
+    PIgXReLPRemContribution<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
+    cudaDeviceSynchronize();*/
+    
+    unsigned int nBlocks = (pdevData->nReadsProcess/100)+1;
+    PIgXReLPRemContribution<<<nBlocks,NThreadsPerBlock>>>(d_pdevData);
+    cudaDeviceSynchronize();
+}
 
 GPUKernelManager::~GPUKernelManager()
 {
@@ -178,16 +205,17 @@ __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int 
             
             unsigned int fluExpIdRead = d_devData->d_TopNFluExpId[absoluteReadIdx]; //Loads the read for all the proteins to test. Global memory retrieving!
             float probFluExpIdRead = d_devData->d_TopNFluExpScores[absoluteReadIdx];
-            float pRemRead = d_devData->d_pRem[absoluteReadIdx];
+            //float pRemRead = d_devData->d_pRem[absoluteReadIdx];
             
-            while(relRead == element/nProts) //For the same read, we perform the sparsity additions for diff proteins!
+            while((relRead == element/nProts) && (element<threadEndIdx)) //For the same read, we perform the sparsity additions for diff proteins! and we dont have to go of our range of elements!
             {
                 unsigned int relProt=element%nProts; //Protein index within the ones that are in the group
                 unsigned int FluExpRelIdOffset=accNExpIdForProt[relProt]; //Offset to get the flus of that prot.
                 unsigned int absoluteProtIdx=firstProtFromGroup+relProt;
                 PIgXRelIdx=((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nProt) + ((unsigned long)absoluteProtIdx);
                 
-                float PCurrProtGivenReadRel=pRemRead;//Adding normalizing error
+                //float PCurrProtGivenReadRel=pRemRead;//Adding normalizing error
+                float PCurrProtGivenReadRel;//Adding normalizing error
                 for(unsigned int currFluExpOfRelProt=FluExpRelIdOffset;currFluExpOfRelProt<FluExpRelIdOffset+nExpIdForProt[relProt];currFluExpOfRelProt++)
                 {    
                     unsigned int currFluExp = fluExpIdForProt[currFluExpOfRelProt]; //Shared memory to register!
@@ -195,11 +223,12 @@ __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int 
                         break;
                     else if(fluExpIdRead == currFluExp) //If match, add probability!
                     {
-                        PCurrProtGivenReadRel += (probFluExpIdRead * probFluExpIdForProt[currFluExpOfRelProt]); //When a match, adds prob and quits the search.
+                        PCurrProtGivenReadRel = (probFluExpIdRead * probFluExpIdForProt[currFluExpOfRelProt]); //When a match, adds prob and quits the search.
+                        d_devData->d_MatAux[PIgXRelIdx]+=PCurrProtGivenReadRel;
                         break;
                     }
                 }
-                d_devData->d_MatAux[PIgXRelIdx]=PCurrProtGivenReadRel; //Saves output! In global memory.
+                //d_devData->d_MatAux[PIgXRelIdx]=PCurrProtGivenReadRel; //Saves output! In global memory.
                 element++;
             }
             element--; //For loop will increment in one, but we dont want to jump!
@@ -207,36 +236,44 @@ __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int 
     }
 }
 
-/*
-__global__ void paintByFewNProtFewNReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock) //ONLY FOR ORACLE FOR NOW
+__global__ void PIgXReLPRemContribution(DeviceData *d_devData)
 {
-    unsigned int nBlocksPerGroupOfProteins = (d_devData->nReadsProcess/nReadsPerBlock)+1; //For easier notation
-    unsigned int nGroupOfProteins = (d_devData->nProt/nProtsPerBlock)+1;
+//(unsigned long)blockIdx.x*(unsigned long)blockDim.x + (unsigned long)threadIdx.x
+    unsigned long nProt= d_devData->nProt;
     
-    unsigned int protGroupBlockIdx = blockIdx.x % nBlocksPerGroupOfProteins; //This idx says which reads will the block deal with.
-    unsigned int protGroupIdx = blockIdx.x / nBlocksPerGroupOfProteins; //This idx says which group of proteins this block will work with.
-    unsigned int firstProtFromGroup=nProtsPerBlock*protGroupIdx; //Absolute first protein of the group
-    unsigned int firstReadFromGroup=nReadsPerBlock*protGroupBlockIdx; //Absolute first read of the group
-    unsigned int nProts = (protGroupIdx==(nGroupOfProteins-1)) ? (d_devData->nProt-firstProtFromGroup): nProtsPerBlock; //We always have nGroupOfProteins unless we are in the last group
-    unsigned int nReads = (protGroupBlockIdx==(nBlocksPerGroupOfProteins-1)) ? (d_devData->nReadsProcess-firstReadFromGroup): nReadsPerBlock; //We always have nGroupOfProteins unless we are in the last group
+    float regArray[100];
+    unsigned int nBlocks = (d_devData->nReadsProcess/100)+1;
+    unsigned int nReadStart=blockIdx.x*100;
+    unsigned int nReadsToProcess =  (blockIdx.x== nBlocks-1) ? (d_devData->nReadsProcess-nReadStart):100;
     
-    unsigned int nOutElems=nProts*nReads; //PIgXRel is n_protxn_reads in total, here is a small part of it.
-    unsigned int outMaxElemsPerThread=(nOutElems/blockDim.x)+1; //We divide the calculations per threads, but this can be with comma, so we take the max 
-    //using outMaxElemsPerThread per thread, there will be inactive threads, but can be minimized if the nOutElems>>nThreads.
-    unsigned int threadStartIdx = threadIdx.x * outMaxElemsPerThread; //The thread starts with this element
-    unsigned long PIgXRelIdx; //Used for the indexing later
+    for(unsigned long i=0;i<nReadsToProcess;i++)
+        regArray[i]=d_devData->d_pRem[blockIdx.x*100+i];
     
-    if(threadStartIdx< nOutElems)
+    unsigned int nChunks= ((nReadsToProcess*d_devData->nProt)/blockDim.x)+1;
+    
+    unsigned int i;
+    for(i=0;i<nChunks-1;i++)
     {
-        unsigned int threadEndIdx = min(threadStartIdx + outMaxElemsPerThread, nOutElems); //Indicates the elements that this thread will calculate!
-        for(unsigned int element=threadStartIdx;element<threadEndIdx;element++)
-        {
-            unsigned int relRead=element/nProts; //Read index within the ones that are in the group. We use / so we minimize global memory reads!. % for prot.
-            unsigned int absoluteReadIdx=firstReadFr
-            unsigned int relProt=element%nProts; //Protein index within the ones that are in the group
-            unsigned int relProt=element%nProts; //Protein index within the ones that are in the group
-        
-        }
+        unsigned int idxRelRead = i*blockDim.x + threadIdx.x;
+        unsigned int relProt = idxRelRead%d_devData->nProt;
+        unsigned int relRead = idxRelRead/d_devData->nProt;
+        unsigned long absoluteRead = relRead + nReadStart;
+        unsigned long idxAbsolute = absoluteRead*nProt+(unsigned long)relProt;
+        d_devData->d_MatAux[idxAbsolute]=regArray[relRead];
+        //d_devData->d_MatAux[idxAbsolute]=blockIdx.x;
+    }
+    //For the last case we introduce the branch, only the corresponding threads should copy
+    
+    
+    unsigned int nFloatsFinalChunk= (nReadsToProcess*d_devData->nProt)-(blockDim.x*(nChunks-1));
+    if(threadIdx.x<nFloatsFinalChunk)
+    {
+        unsigned int idxRelRead = (nChunks-1)*blockDim.x + threadIdx.x;
+        unsigned int relProt = idxRelRead%d_devData->nProt;
+        unsigned int relRead = idxRelRead/d_devData->nProt;
+        unsigned long absoluteRead = relRead + nReadStart;
+        unsigned long idxAbsolute = absoluteRead*nProt+relProt;
+        d_devData->d_MatAux[idxAbsolute]=regArray[relRead];
+        //d_devData->d_MatAux[idxAbsolute]=blockIdx.x;
     }
 }
-*/

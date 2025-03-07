@@ -72,6 +72,12 @@ void GPUDataManager::retrieveOutput(float * updateVectorOut,DeviceData *devData)
     cudaMemcpy(updateVectorOut, devData->d_MatAux, sizeof(float)*nElemMat, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
 }
 
+void GPUDataManager::retrieveOutput(float * updateVectorOut,DeviceData *devData,unsigned long nRows)
+{
+    unsigned long nElemMat=((unsigned long)(devData->nProt)) * nRows; //Number of elements of the result matrix
+    cudaMemcpy(updateVectorOut, devData->d_MatAux, sizeof(float)*nElemMat, cudaMemcpyDeviceToHost); //The update is contained in the auxiliar vector.
+}
+
 void GPUDataManager::createOnesVec(DeviceData *pdevData)
 {
     vector<float> ones(onesVecLen, 1);

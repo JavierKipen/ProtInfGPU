@@ -45,19 +45,20 @@ void Wrapper::timeBaseKernel()
 
 void Wrapper::checkFewProtFewReadPerBlock()
 {
+    //gKM.initCublas();
     auto t1 = chrono::high_resolution_clock::now();
+    gKM.setPRemContribution(&devData,d_pdevData);
     gKM.runFewProtFewReadPerBlockOracle(&devData,d_pdevData, 170, 50000);
     auto t2 = chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms_total = t2 - t1;
     cout << "Total time on normal kernel: " << ms_total.count() << " ms \n";
-    unsigned long nElemMat=((unsigned long)IOM.datasetMetadata.nProt)*((unsigned long)IOM.datasetMetadata.nReadsTotal); //Number of elements of the result matrix
+    
+    
+    unsigned long nRows=1000;
+    unsigned long nElemMat=((unsigned long)IOM.datasetMetadata.nProt)*nRows; //Number of elements of the result matrix
     PXgIrel.resize(nElemMat,0);
-    gDM.retrieveOutput(PXgIrel.data(),&devData);
-    
-    IOM.saveTruePXgIrel(PXgIrel,"PXgIrelToCheck.bin");
-    //checkNansMat(PXgIrel);
-    //checkRowNonZero(PXgIrel,IOM.datasetMetadata.nProt,IOM.datasetMetadata.nReadsTotal);
-    
+    gDM.retrieveOutput(PXgIrel.data(),&devData,nRows);
+    IOM.saveTruePXgIrel(PXgIrel,"PXgIrelToCheckMemTransf.bin");
 }
 
 void Wrapper::checkNansMat(vector<float> &mat)

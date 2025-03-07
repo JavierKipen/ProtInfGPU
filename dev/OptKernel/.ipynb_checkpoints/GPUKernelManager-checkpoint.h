@@ -2,7 +2,7 @@
 #define GPUKERNELMANAGER_H
 
 #include "DeviceData.h"
-
+#include <cublas_v2.h>
 
 
 #define GPU_DEVICE 3
@@ -18,9 +18,11 @@ class GPUKernelManager {  //Class to handle the data movement (later would be al
         void runBaseKernel(DeviceData *pdevData, DeviceData *d_pdevData);
         void calcPRem(DeviceData *pdevData, DeviceData *d_pdevData);
         void runFewProtFewReadPerBlockOracle(DeviceData *pdevData, DeviceData *d_pdevData, unsigned int nProtPerBlock, unsigned int nReadPerBlock);
-    
+        void setPRemContribution(DeviceData *pdevData, DeviceData *d_pdevData);
+        void initCublas();
         unsigned int NThreadsPerBlock;
     private:
+        cublasHandle_t cuBlasHandle;
         //DeviceData *pdevData, *d_pdevData; //p to dev data both on device and host, save on the call to pass within the functions easier 
 };
 
