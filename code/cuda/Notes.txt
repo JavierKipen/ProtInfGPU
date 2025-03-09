@@ -1,0 +1,10 @@
+Compile with
+
+nvcc main.cu CrossValWrapper.cpp FileSystemInterface.cpp GPUCalcManager.cu GPUDataManager.cu GPUWrapper.cu InputParser.cpp -lcublas -g
+
+nvcc main.cu CrossValWrapper.cpp FileSystemInterface.cpp GPUCalcManager.cu GPUDataManager.cu GPUWrapper.cu InputParser.cpp -lcublas -O3 -o opt.out
+
+
+
+Example run:
+./opt.out /home/jkipen/raid_storage/ProtInfGPU/data/20660_Prot/binary/Oracle /home/jkipen/ProtInfGPU/results/20660_Prot/Oracle_opt -d 3 -e 30 -c 1 -m 50 -M 30 -s 100000 -t 512 -o 0
