@@ -59,9 +59,10 @@ void GPUDataManager::metadataToGPU(DatasetMetadata *pDM,DeviceData *pdevData, De
 void GPUDataManager::loadNewDataToGPU(PNewData pNewData,DeviceData *pdevData,DeviceData *d_pdevData)
 {
     pdevData->nReadsProcess=pNewData.nReads;//Amount of reads to process
+    unsigned long nElements= ((unsigned long)pdevData->nReadsProcess) * ((unsigned long)pdevData->nSparsity);
     cudaMemcpy(&(d_pdevData->nReadsProcess), &(pNewData.nReads), sizeof(unsigned int), cudaMemcpyHostToDevice); //Copies reads to process to device
-    cudaMemcpy(pdevData->d_TopNFluExpId, pNewData.pTopNFluExpIds, sizeof(unsigned int)*pdevData->nReadsProcess*pdevData->nSparsity, cudaMemcpyHostToDevice);
-    cudaMemcpy(pdevData->d_TopNFluExpScores, pNewData.pTopNFluExpScores, sizeof(float)*pdevData->nReadsProcess*pdevData->nSparsity, cudaMemcpyHostToDevice);
+    cudaMemcpy(pdevData->d_TopNFluExpId, pNewData.pTopNFluExpIds, sizeof(unsigned int)*nElements, cudaMemcpyHostToDevice);
+    cudaMemcpy(pdevData->d_TopNFluExpScores, pNewData.pTopNFluExpScores, sizeof(float)*nElements, cudaMemcpyHostToDevice);
     cudaMemcpy(pdevData->d_PIEst, pNewData.pPIEst, sizeof(float)*pdevData->nProt, cudaMemcpyHostToDevice); //Could be passed less times!
 }
 

@@ -21,6 +21,7 @@ class IOManager {  //Class to abstract from the used filesystem to load the data
         void setReadsMax(unsigned int nReads);
         void loadScores();
         void createOracleScores();
+        void createNonOracleScores();
         void saveTruePXgIrel(vector<float> &PXgIrel,string name);
         DatasetMetadata datasetMetadata;
     

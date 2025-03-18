@@ -18,14 +18,14 @@ using namespace std;
 /********************* Kernel declarations ************************/
 __global__ void pRemKernel(DeviceData *d_devData);
 __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData);
-__global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock);
+__global__ void PIgXRelBlockFewProtsFewReadsNonOracle(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock);
 __global__ void PIgXReLPRemContribution(DeviceData *d_devData);
 
 //Class functions
 
 GPUKernelManager::GPUKernelManager()
 {
-    NThreadsPerBlock=512; //default value!
+    NThreadsPerBlock=1024; //default value!
 }
 
 
@@ -45,12 +45,12 @@ void GPUKernelManager::runBaseKernel(DeviceData *pdevData, DeviceData *d_pdevDat
     cudaDeviceSynchronize();
 }
 
-void GPUKernelManager::runFewProtFewReadPerBlockOracle(DeviceData *pdevData, DeviceData *d_pdevData, unsigned int nProtPerBlock, unsigned int nReadPerBlock) 
+void GPUKernelManager::runFewProtFewReadPerBlockNonOracle(DeviceData *pdevData, DeviceData *d_pdevData, unsigned int nProtPerBlock, unsigned int nReadPerBlock) 
 { 
     unsigned long nBlocksPerGroupOfProteins = (pdevData->nReadsProcess/nReadPerBlock)+1;
     unsigned long nGroupOfProteins = (pdevData->nProt/nProtPerBlock)+1;
     unsigned long nBlocks = nBlocksPerGroupOfProteins*nGroupOfProteins;
-    PIgXRelBlockFewProtsFewReads<<<nBlocks,NThreadsPerBlock>>>(d_pdevData,nProtPerBlock,nReadPerBlock);
+    PIgXRelBlockFewProtsFewReadsNonOracle<<<nBlocks,NThreadsPerBlock>>>(d_pdevData,nProtPerBlock,nReadPerBlock);
     cudaDeviceSynchronize();
 }
 
@@ -65,25 +65,11 @@ void GPUKernelManager::calcPRem(DeviceData *pdevData, DeviceData *d_pdevData)
     unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
     pRemKernel<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
     cudaDeviceSynchronize();
-    
-    /*
-    cublasStatus_t result= cublasSgbmv(cuBlasHandle, cublasOperation_t trans,
-            int m, int n, int kl, int ku,
-            const float *alpha,
-            const float *A, int lda,
-            const float *x, int incx,
-            const float *beta,
-            float *y, int incy)*/
 }
 
 
 void GPUKernelManager::setPRemContribution(DeviceData *pdevData, DeviceData *d_pdevData)
-{/*
-    unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess);
-    unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
-    PIgXReLPRemContribution<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
-    cudaDeviceSynchronize();*/
-    
+{   
     unsigned int nBlocks = (pdevData->nReadsProcess/100)+1;
     PIgXReLPRemContribution<<<nBlocks,NThreadsPerBlock>>>(d_pdevData);
     cudaDeviceSynchronize();
@@ -149,7 +135,7 @@ __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
 
 
 
-__global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock) //ONLY FOR ORACLE FOR NOW
+__global__ void PIgXRelBlockFewProtsFewReadsNonOracle(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock) //ONLY FOR NON ORACLE
 {
     unsigned int nBlocksPerGroupOfProteins = (d_devData->nReadsProcess/nReadsPerBlock)+1; //For easier notation
     unsigned int nGroupOfProteins = (d_devData->nProt/nProtsPerBlock)+1;
@@ -189,49 +175,56 @@ __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int 
     }
     __syncthreads();
     /********************** Operating the kernel ***************************/
-    unsigned int nOutElems=nProts*nReads; //PIgXRel is n_protxn_reads in total, here is a small part of it.
-    unsigned int outMaxElemsPerThread=(nOutElems/blockDim.x)+1; //We divide the calculations per threads, but this can be with comma, so we take the max 
-    //using outMaxElemsPerThread per thread, there will be inactive threads, but can be minimized if the nOutElems>>nThreads.
-    unsigned int threadStartIdx = threadIdx.x * outMaxElemsPerThread; //The thread starts with this element
-    unsigned long PIgXRelIdx; //Used for the indexing later
+    unsigned int nReadGroups = blockDim.x/nProts; //Each thread belongs to a group of reads an only one protein. 
+    unsigned int activeThreads = nProts*nReadGroups; //Other threads wont do anything
+    unsigned int nReadsPerThreadMax= (nReads/nReadGroups)+1;
+    unsigned int threadRelProt = threadIdx.x % nProts;
     
-    if(threadStartIdx< nOutElems) //Keeps only threads that make sense.
+    if(threadIdx.x < activeThreads) //Keeps only threads that make sense.
     {
-        unsigned int threadEndIdx = min(threadStartIdx + outMaxElemsPerThread, nOutElems); //Indicates the elements that this thread will calculate!
-        for(unsigned int element=threadStartIdx;element<threadEndIdx;element++)
+        unsigned int absoluteProtIdx=firstProtFromGroup+threadRelProt;
+        unsigned int FluExpRelIdOffset=accNExpIdForProt[threadRelProt]; //Offset to get the flus of that prot.
+        unsigned int threadReadGroup = threadIdx.x / nProts;
+        unsigned int startRelRead = threadReadGroup * nReadsPerThreadMax; //First read that this thread will calc
+        unsigned int endRelRead =  min(startRelRead + nReadsPerThreadMax, nReads); //Last read of this thread
+        
+        for(unsigned int currRelRead=startRelRead;currRelRead<endRelRead;currRelRead++) //Reads that this thread is calculating.
         {
-            unsigned int relRead=element/nProts; //Read index within the ones that are in the group. We use / so we minimize global memory reads!. % for prot.
-            unsigned int absoluteReadIdx=firstReadFromGroup+relRead;
+            unsigned int absoluteReadIdx=firstReadFromGroup+currRelRead; //Gets the absolute read value
             
-            unsigned int fluExpIdRead = d_devData->d_TopNFluExpId[absoluteReadIdx]; //Loads the read for all the proteins to test. Global memory retrieving!
-            float probFluExpIdRead = d_devData->d_TopNFluExpScores[absoluteReadIdx];
-            //float pRemRead = d_devData->d_pRem[absoluteReadIdx];
+            unsigned long PIgXRelIdx=((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nProt) + ((unsigned long)absoluteProtIdx); //Idx of el calc!
+            bool finishedCalcRead=false; //Indicates that we finished calculating that read!
+            unsigned int currSparsityScore=0; //Indicates which sparsity score we are observing!
+            unsigned int currFluExpIdOfRelProt=FluExpRelIdOffset; //FluExp Idx of the proteins that we will see
+            float PCurrProtGivenReadRel=0; //Accumulates the prob here, then pushes to memory!
+            unsigned int currFluExpRelProt=0; //We set the fluexp of the protein here
             
-            while((relRead == element/nProts) && (element<threadEndIdx)) //For the same read, we perform the sparsity additions for diff proteins! and we dont have to go of our range of elements!
+            while( (finishedCalcRead==false) && (currSparsityScore<d_devData->nSparsity)) //We loop through the sparsity scores
             {
-                unsigned int relProt=element%nProts; //Protein index within the ones that are in the group
-                unsigned int FluExpRelIdOffset=accNExpIdForProt[relProt]; //Offset to get the flus of that prot.
-                unsigned int absoluteProtIdx=firstProtFromGroup+relProt;
-                PIgXRelIdx=((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nProt) + ((unsigned long)absoluteProtIdx);
+                unsigned long absoluteScoreIdx= ((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nSparsity) + ((unsigned long)currSparsityScore);
+                unsigned int fluExpIdRead = d_devData->d_TopNFluExpId[absoluteScoreIdx]; //Get the fluexp of that sparse score;
                 
-                //float PCurrProtGivenReadRel=pRemRead;//Adding normalizing error
-                float PCurrProtGivenReadRel;//Adding normalizing error
-                for(unsigned int currFluExpOfRelProt=FluExpRelIdOffset;currFluExpOfRelProt<FluExpRelIdOffset+nExpIdForProt[relProt];currFluExpOfRelProt++)
-                {    
-                    unsigned int currFluExp = fluExpIdForProt[currFluExpOfRelProt]; //Shared memory to register!
-                    if(fluExpIdRead < currFluExp) //fluExpIdForProt are ordered, so if we have a lower id we are not gonna match.
+                while( currFluExpIdOfRelProt < FluExpRelIdOffset+nExpIdForProt[threadRelProt] ) //We advance the idx of the fluexps of the threads protein.
+                {
+                    currFluExpRelProt = fluExpIdForProt[currFluExpIdOfRelProt]; //The flu of the protein we are analyzing
+                    if (currFluExpRelProt==fluExpIdRead) //When the score idx is a flu that is present in this protein
                         break;
-                    else if(fluExpIdRead == currFluExp) //If match, add probability!
-                    {
-                        PCurrProtGivenReadRel = (probFluExpIdRead * probFluExpIdForProt[currFluExpOfRelProt]); //When a match, adds prob and quits the search.
-                        d_devData->d_MatAux[PIgXRelIdx]+=PCurrProtGivenReadRel;
+                    else if (currFluExpRelProt < fluExpIdRead) // When the score idx is bigger than the curr fluexp of this protein 
+                        currFluExpIdOfRelProt++; //We go to the next fluexp of the protein
+                    else //When the curr fluexp is bigger than the protein, we advance in the score index!
                         break;
-                    }
                 }
-                //d_devData->d_MatAux[PIgXRelIdx]=PCurrProtGivenReadRel; //Saves output! In global memory.
-                element++;
+                if(currFluExpIdOfRelProt == FluExpRelIdOffset+nExpIdForProt[threadRelProt]) //If we already went through all flus of this prot, it has finished!
+                    finishedCalcRead=true; 
+                if(currFluExpRelProt==fluExpIdRead) //When idx score and protein fluexp match, we add the probability and we go to the next flu and next score
+                {
+                    PCurrProtGivenReadRel += (d_devData->d_TopNFluExpScores[absoluteScoreIdx] * probFluExpIdForProt[currFluExpIdOfRelProt]);
+                    currFluExpIdOfRelProt++;
+                }
+                currSparsityScore++; //Goes to next score
             }
-            element--; //For loop will increment in one, but we dont want to jump!
+            if(PCurrProtGivenReadRel>0) //Saves the output if there was any match at all.
+                d_devData->d_MatAux[PIgXRelIdx]+=PCurrProtGivenReadRel;
         }
     }
 }

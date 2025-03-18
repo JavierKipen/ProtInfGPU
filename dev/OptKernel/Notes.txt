@@ -41,3 +41,10 @@ It seems to be the same now!! Great. We checked the sum of whole matrix and the 
 I think with this we finished the optimization of Oracle, now we will try to add to the main code and see if it works correctly.
 
 ***************Non oracle ****************************
+
+nvcc main.cpp GPUDataManager.cu GPUKernelManager.cu IOManager.cpp Wrapper.cpp -g
+
+Base timing:
+1.30502e+06 ms -> 21 mins to calculate only one update!!!!!!!!
+
+The sum of the whole matrix is 66754.125. 
