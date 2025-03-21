@@ -47,3 +47,5 @@ nvcc main.cpp GPUDataManager.cu GPUKernelManager.cu IOManager.cpp Wrapper.cpp -g
 Base timing:
 1.30502e+06 ms -> 21 mins to calculate only one update!!!!!!!!
 
+The sum of the whole matrix is 66754.125. 
+Could run it and now was down to 11 seconds! I think this should be enough.

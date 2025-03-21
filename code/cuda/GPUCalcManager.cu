@@ -10,6 +10,8 @@
 #define ORACLE_MAX_PROTS_IN_READS_N_PROT_PER_BLOCK 170 
 #define ORACLE_N_READS_MAX_PREM 100
 
+#define OPT_KERNEL_MAX_PROTS ORACLE_MAX_PROTS_IN_READS_N_PROT_PER_BLOCK
+#define OPT_KERNEL_N_READS 50000
 
 using namespace std;
 
@@ -18,6 +20,7 @@ using namespace std;
 __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData);
 __global__ void invertVect(float * vec,unsigned int len);
 __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock);
+__global__ void PIgXRelBlockFewProtsFewReadsNonOracle(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock); //ONLY FOR NON ORACLE
 __global__ void PIgXReLPRemContribution(DeviceData *d_devData);
 
 
@@ -233,9 +236,20 @@ void GPUCalcManager::calcPXgIRel() //Assumes P_rem already calculated.
     }
     else
     {
-        unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess * (unsigned long)pdevData->nProt);
-        unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
-        PIgXRelThreadPerReadPerProt<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
+        if(pdevData->nProt>100) //For low amount of proteins this is okay fast
+        {
+            unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess * (unsigned long)pdevData->nProt);
+            unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
+            PIgXRelThreadPerReadPerProt<<<n_blocks,NThreadsPerBlock>>>(d_pdevData);
+        }
+        else //Optimized kernel!
+        {
+            unsigned int nBlocks = (pdevData->nReadsProcess/ORACLE_N_READS_MAX_PREM)+1;
+            PIgXReLPRemContribution<<<nBlocks,NThreadsPerBlock>>>(d_pdevData);
+            cudaDeviceSynchronize(); //Copies the PRem contribution into the matrix!
+            runFewProtFewReadPerBlockNonOracle(OPT_KERNEL_MAX_PROTS,OPT_KERNEL_N_READS); //Optimized kernel!
+        }
+            
     }
 
     cudaDeviceSynchronize();
@@ -282,6 +296,16 @@ void GPUCalcManager::calcPRem()
                                 
     assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!1 Try reducing the number of reads on GPU by reducing memory usage.");
 }
+
+void GPUCalcManager::runFewProtFewReadPerBlockNonOracle(unsigned int nProtPerBlock, unsigned int nReadPerBlock) 
+{ 
+    unsigned long nBlocksPerGroupOfProteins = (pdevData->nReadsProcess/nReadPerBlock)+1;
+    unsigned long nGroupOfProteins = (pdevData->nProt/nProtPerBlock)+1;
+    unsigned long nBlocks = nBlocksPerGroupOfProteins*nGroupOfProteins;
+    PIgXRelBlockFewProtsFewReadsNonOracle<<<nBlocks,NThreadsPerBlock>>>(d_pdevData,nProtPerBlock,nReadPerBlock);
+    cudaDeviceSynchronize();
+}
+
 
 
 GPUCalcManager::~GPUCalcManager()
@@ -460,6 +484,101 @@ __global__ void PIgXReLPRemContribution(DeviceData *d_devData)
         unsigned long idxAbsolute = absoluteRead*nProt+relProt;
         d_devData->d_MatAux[idxAbsolute]=regArray[relRead];
         //d_devData->d_MatAux[idxAbsolute]=blockIdx.x;
+    }
+}
+
+
+__global__ void PIgXRelBlockFewProtsFewReadsNonOracle(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock) //ONLY FOR NON ORACLE
+{
+    unsigned int nBlocksPerGroupOfProteins = (d_devData->nReadsProcess/nReadsPerBlock)+1; //For easier notation
+    unsigned int nGroupOfProteins = (d_devData->nProt/nProtsPerBlock)+1;
+    
+    unsigned int protGroupBlockIdx = blockIdx.x % nBlocksPerGroupOfProteins; //This idx says which reads will the block deal with.
+    unsigned int protGroupIdx = blockIdx.x / nBlocksPerGroupOfProteins; //This idx says which group of proteins this block will work with.
+    unsigned int firstProtFromGroup=nProtsPerBlock*protGroupIdx; //Absolute first protein of the group
+    unsigned int firstReadFromGroup=nReadsPerBlock*protGroupBlockIdx; //Absolute first read of the group
+    unsigned int nProts = (protGroupIdx==(nGroupOfProteins-1)) ? (d_devData->nProt-firstProtFromGroup): nProtsPerBlock; //We always have nGroupOfProteins unless we are in the last group
+    unsigned int nReads = (protGroupBlockIdx==(nBlocksPerGroupOfProteins-1)) ? (d_devData->nReadsProcess-firstReadFromGroup): nReadsPerBlock; //We always have nGroupOfProteins unless we are in the last group
+    
+    __shared__ unsigned int nExpIdForProt[ORACLE_MAX_PROTS_IN_READS_N_PROT_PER_BLOCK];
+    __shared__ unsigned int accNExpIdForProt[ORACLE_MAX_PROTS_IN_READS_N_PROT_PER_BLOCK];
+    __shared__ unsigned int fluExpIdForProt[ORACLE_MAX_ELEMS_SHARED];
+    __shared__ float probFluExpIdForProt[ORACLE_MAX_ELEMS_SHARED];
+    
+    /********************** Loading the shared memory ***************************/
+    if(threadIdx.x==0) //Thread 0 loading shared memory.
+    {
+        unsigned int FluExpIdOffset=0; //Could be precalculated instead of calculated now, but effect should be minimal.
+        for(unsigned int i=0;i<firstProtFromGroup;i++)
+            FluExpIdOffset+=d_devData->d_NFexpForI[i];
+            
+        unsigned int fluExpNToCopy=0;
+        for(unsigned int i=0;i<nProts;i++)//Now we load the shared memory
+        {
+            nExpIdForProt[i]=d_devData->d_NFexpForI[firstProtFromGroup+i];
+            accNExpIdForProt[i]= (i==0) ? 0: (accNExpIdForProt[i-1]+nExpIdForProt[i-1]); //Accumulates to have the offsets for calculations
+            fluExpNToCopy+=nExpIdForProt[i];
+        } //Copies nExpIdForProt, and obtains how many elements will be copied to the shared memory
+        
+        for(unsigned int i=0;i<fluExpNToCopy;i++)//Now we load the shared memory
+        {
+            probFluExpIdForProt[i]=d_devData->d_PFexpForI[i+FluExpIdOffset];
+            fluExpIdForProt[i]=d_devData->d_FexpIdForI[i+FluExpIdOffset];
+        }
+    }
+    __syncthreads();
+    /********************** Operating the kernel ***************************/
+    unsigned int nReadGroups = blockDim.x/nProts; //Each thread belongs to a group of reads an only one protein. 
+    unsigned int activeThreads = nProts*nReadGroups; //Other threads wont do anything
+    unsigned int nReadsPerThreadMax= (nReads/nReadGroups)+1;
+    unsigned int threadRelProt = threadIdx.x % nProts;
+    
+    if(threadIdx.x < activeThreads) //Keeps only threads that make sense.
+    {
+        unsigned int absoluteProtIdx=firstProtFromGroup+threadRelProt;
+        unsigned int FluExpRelIdOffset=accNExpIdForProt[threadRelProt]; //Offset to get the flus of that prot.
+        unsigned int threadReadGroup = threadIdx.x / nProts;
+        unsigned int startRelRead = threadReadGroup * nReadsPerThreadMax; //First read that this thread will calc
+        unsigned int endRelRead =  min(startRelRead + nReadsPerThreadMax, nReads); //Last read of this thread
+        
+        for(unsigned int currRelRead=startRelRead;currRelRead<endRelRead;currRelRead++) //Reads that this thread is calculating.
+        {
+            unsigned int absoluteReadIdx=firstReadFromGroup+currRelRead; //Gets the absolute read value
+            
+            unsigned long PIgXRelIdx=((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nProt) + ((unsigned long)absoluteProtIdx); //Idx of el calc!
+            bool finishedCalcRead=false; //Indicates that we finished calculating that read!
+            unsigned int currSparsityScore=0; //Indicates which sparsity score we are observing!
+            unsigned int currFluExpIdOfRelProt=FluExpRelIdOffset; //FluExp Idx of the proteins that we will see
+            float PCurrProtGivenReadRel=0; //Accumulates the prob here, then pushes to memory!
+            unsigned int currFluExpRelProt=0; //We set the fluexp of the protein here
+            
+            while( (finishedCalcRead==false) && (currSparsityScore<d_devData->nSparsity)) //We loop through the sparsity scores
+            {
+                unsigned long absoluteScoreIdx= ((unsigned long)absoluteReadIdx)*((unsigned long)d_devData->nSparsity) + ((unsigned long)currSparsityScore);
+                unsigned int fluExpIdRead = d_devData->d_TopNFluExpId[absoluteScoreIdx]; //Get the fluexp of that sparse score;
+                
+                while( currFluExpIdOfRelProt < FluExpRelIdOffset+nExpIdForProt[threadRelProt] ) //We advance the idx of the fluexps of the threads protein.
+                {
+                    currFluExpRelProt = fluExpIdForProt[currFluExpIdOfRelProt]; //The flu of the protein we are analyzing
+                    if (currFluExpRelProt==fluExpIdRead) //When the score idx is a flu that is present in this protein
+                        break;
+                    else if (currFluExpRelProt < fluExpIdRead) // When the score idx is bigger than the curr fluexp of this protein 
+                        currFluExpIdOfRelProt++; //We go to the next fluexp of the protein
+                    else //When the curr fluexp is bigger than the protein, we advance in the score index!
+                        break;
+                }
+                if(currFluExpIdOfRelProt == FluExpRelIdOffset+nExpIdForProt[threadRelProt]) //If we already went through all flus of this prot, it has finished!
+                    finishedCalcRead=true; 
+                if(currFluExpRelProt==fluExpIdRead) //When idx score and protein fluexp match, we add the probability and we go to the next flu and next score
+                {
+                    PCurrProtGivenReadRel += (d_devData->d_TopNFluExpScores[absoluteScoreIdx] * probFluExpIdForProt[currFluExpIdOfRelProt]);
+                    currFluExpIdOfRelProt++;
+                }
+                currSparsityScore++; //Goes to next score
+            }
+            if(PCurrProtGivenReadRel>0) //Saves the output if there was any match at all.
+                d_devData->d_MatAux[PIgXRelIdx]+=PCurrProtGivenReadRel;
+        }
     }
 }
 

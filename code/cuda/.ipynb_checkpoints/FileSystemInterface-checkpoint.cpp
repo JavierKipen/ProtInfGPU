@@ -238,7 +238,7 @@ bool FileSystemInterface::loadDataset()
 void FileSystemInterface::loadDatasetPaths()
 {
     trueIdsPath = commonPath / "trueIds.bin";
-    nSparsityPath = commonPath / "nSparsity.bin";
+    nSparsityPath = classifierPath / "Common/nSparsity.bin";
     fluExpIdForIPath = commonPath / "fluExpIdForI.bin";
     nFluExpForIPath = commonPath / "nFluExpForI.bin";
     probFluExpForIPath = commonPath / "probFluExpForI.bin";

@@ -21,6 +21,7 @@ class GPUCalcManager {  //Class to handle the data movement (later would be also
         std::map<unsigned int, unsigned long> batchingLenForNProt; //Keeps the batching lengths for the lengths of proteins
         unsigned long minBatchSize;
     private:
+        void runFewProtFewReadPerBlockNonOracle(unsigned int nProtPerBlock, unsigned int nReadPerBlock); //Optimized kernel to solve bottleneck computation.
         DeviceData *pdevData, *d_pdevData; //p to dev data both on device and host, save on the call to pass within the functions easier.
         void sumAlphas();
         void calcAlphas();
