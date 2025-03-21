@@ -236,7 +236,7 @@ void GPUCalcManager::calcPXgIRel() //Assumes P_rem already calculated.
     }
     else
     {
-        if(pdevData->nProt>100) //For low amount of proteins this is okay fast
+        if(pdevData->nProt<100) //For low amount of proteins this is okay fast
         {
             unsigned long n_threads = ((unsigned long)pdevData->nReadsProcess * (unsigned long)pdevData->nProt);
             unsigned long n_blocks = (n_threads/NThreadsPerBlock)+1;
