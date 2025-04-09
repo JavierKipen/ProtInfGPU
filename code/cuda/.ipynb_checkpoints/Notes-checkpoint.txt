@@ -8,3 +8,5 @@ nvcc main.cu CrossValWrapper.cpp FileSystemInterface.cpp GPUCalcManager.cu GPUDa
 
 Example run:
 ./opt.out /home/jkipen/raid_storage/ProtInfGPU/data/20660_Prot/binary/Oracle /home/jkipen/ProtInfGPU/results/20660_Prot/Oracle_opt -d 3 -e 30 -c 1 -m 50 -M 30 -s 100000 -t 512 -o 0
+
+./a.out /home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot/binary/Probeam /home/jkipen/ProtInfGPU/results/20642_Prot/Tests -d 3 -e 5 -c 1 -m 120 -M 30 -t 1024 

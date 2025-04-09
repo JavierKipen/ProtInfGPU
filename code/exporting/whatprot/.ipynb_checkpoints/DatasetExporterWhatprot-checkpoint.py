@@ -46,6 +46,25 @@ class DatasetExporterWhatprot():
             os.makedirs(oracle_subfolder)    
         self.gen_cv_data(oracle_subfolder,n_samples=n_samples_cv);
         
+    def export_classifier(self,classifier_name,n_samples_per_flu=100,n_samples_cv=5e5):
+        self.save_dataset_common_vars()
+        
+        classifier_folder=self.out_folder+"/"+classifier_name;
+        
+        if not os.path.exists(classifier_folder): #Creates oracle subf if it doesnt exist!
+            os.makedirs(classifier_folder)
+        
+       # if not os.path.exists(self.out_folder+"/Common/trueIds.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
+        true_ids=np.repeat(np.arange(0, self.n_exp_flus), n_samples_per_flu);
+        true_ids.astype(np.uint32).tofile(classifier_folder+"/Common/trueIds.bin")
+        
+        if not os.path.exists(classifier_folder+"/Common/nSparsity.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
+            n_sparsity=np.asarray(1000);
+            n_sparsity.astype(np.uint32).tofile(classifier_folder+"/Common/nSparsity.bin")
+        
+            
+        self.gen_cv_data(classifier_folder,n_samples=n_samples_cv);
+        
     def gen_cv_data(self,clasificator_folder,n_samples=5e5):
         cv_folder=clasificator_folder+"/CrossVal/";
         if not os.path.exists(cv_folder): #Creates cv subf if it doesnt exist!
@@ -137,8 +156,9 @@ class DatasetExporterWhatprot():
         
         
 if __name__ == "__main__":
-    n_proteins=20660;
-    path_datasets="../../DatasetsProtInf/";
-    prot_folder=path_datasets+str(n_proteins)+"_Prot/"
-    DEW=DatasetExporterWhatprot(prot_folder+"/whatprot/ExpTable.csv",prot_folder,n_cross_val=10);
-    DEW.export_oracle(n_samples_cv=10e6);
+    n_proteins=20642;
+    path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
+    exp_csv_path=path_datasets+"/binary/ProbeamBetterConfig/ExpTable.csv"
+    classifier_name="ProbeamBetterConfig";
+    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.007);
+    DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=2);
