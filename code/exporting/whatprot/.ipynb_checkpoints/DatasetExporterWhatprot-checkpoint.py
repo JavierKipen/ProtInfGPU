@@ -160,5 +160,5 @@ if __name__ == "__main__":
     path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
     exp_csv_path=path_datasets+"/binary/ProbeamBetterConfig/ExpTable.csv"
     classifier_name="ProbeamBetterConfig";
-    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.007);
+    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.0007);
     DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=2);

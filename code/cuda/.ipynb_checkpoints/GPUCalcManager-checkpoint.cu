@@ -22,6 +22,7 @@ __global__ void invertVect(float * vec,unsigned int len);
 __global__ void PIgXRelBlockFewProtsFewReads(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock);
 __global__ void PIgXRelBlockFewProtsFewReadsNonOracle(DeviceData *d_devData,unsigned int nProtsPerBlock, unsigned int nReadsPerBlock); //ONLY FOR NON ORACLE
 __global__ void PIgXReLPRemContribution(DeviceData *d_devData);
+__global__ void ramp(float * vec,unsigned int len);
 
 
 //Class functions
@@ -71,6 +72,7 @@ void GPUCalcManager::calculateUpdate(DeviceData *pdevData, DeviceData *d_pdevDat
     auto t1 = chrono::high_resolution_clock::now();
     
     calcPRem(); //Gets normalization factor of sparse matrix
+    
     //checkNan(pdevData->d_pRem,pdevData->nReadsProcess);
     
     auto t2 = chrono::high_resolution_clock::now();
@@ -295,6 +297,10 @@ void GPUCalcManager::calcPRem()
                                 pdevData->d_pRem, 1);//lda is number of columns
                                 
     assert(cuBlasStatus == CUBLAS_STATUS_SUCCESS && "Error in cuBlas calculation lib!1 Try reducing the number of reads on GPU by reducing memory usage.");
+    
+    unsigned int n_threads = pdevData->nReadsProcess;
+    unsigned int n_blocks = (n_threads/NThreadsPerBlock)+1;
+    ramp<<<n_blocks,NThreadsPerBlock>>>(pdevData->d_pRem,pdevData->nReadsProcess); //Removes possibility of any negative Prem (due to computing error).
 }
 
 void GPUCalcManager::runFewProtFewReadPerBlockNonOracle(unsigned int nProtPerBlock, unsigned int nReadPerBlock) 
@@ -321,6 +327,14 @@ __global__ void invertVect(float * vec,unsigned int len){
     /* if valid, squre the array element */
     if (tid < len) 
         vec[tid] = (1/vec[tid]);
+}
+
+__global__ void ramp(float * vec,unsigned int len){
+    unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x; //thread id;
+
+    /* if valid, squre the array element */
+    if (tid < len) 
+        vec[tid] = (vec[tid]<0) ? 0:(vec[tid]) ; //Ramp function
 }
 
 __global__ void PIgXRelThreadPerReadPerProt(DeviceData *d_devData)
