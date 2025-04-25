@@ -48,7 +48,7 @@ class InputParser{  //Class to handle the data movement (later would be also bin
         void displayInfoMsg(); //If there was an error in the parsing, here we plot the message of how it should be called.
         bool keyExists(string str);
     
-        string inputDir,outputDir; //Directories.
+        string inputDir,outputDir,errType; //Directories.
         unsigned int nEpochs,nCrossValDs,nTreadsPerBlock,nSparsity,deviceN,nSubsetCV;
         bool useOracle,verbose;
         float oraclePErr,limitRAMGb,limitMemGPUGb;

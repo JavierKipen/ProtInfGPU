@@ -69,6 +69,8 @@ bool InputParser::parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, c
             nTreadsPerBlock=atoi(valueStr.c_str());
         if(currKey=="-d")
             deviceN=atoi(valueStr.c_str());
+        if(currKey=="-r")
+            errType=valueStr;
         if(currKey=="-s")
             nSubsetCV=atoi(valueStr.c_str());
         (*pKeyIndex)++; //Advances to the next key
@@ -94,6 +96,7 @@ void InputParser::init()
                       {"-o",       "Use oracle"      ,      "0"      }, //Uses oracle. value  is the probability of error, p>0 activates oracle
                       {"-c","Cross validation datasets",   "10"      },
                       {"-e",     "Number of epochs"  ,     "60"      },
+                      {"-r",     "Error saved"       ,    "PY"      }, //By default uses the metric comparing the PY (prot distribution). Can be also PI, both are MAE.
                       {"-d",         "GPU Device"     ,    "0"      },
                       {"-s","Subset samples cross validation" ,    "0"      }, //Reduces the amount of samples of each cv, so it can run faster. 0 means no reduction
                       {"-v",         "Verbose"       ,     "No"      }, //No value, using the key will make the code verbose.
@@ -112,6 +115,7 @@ void InputParser::init()
     nSubsetCV=atoi(keyDescriptions[getKeyIdx("Subset samples cross validation")][DEFAULT_VALUE].c_str());
     limitRAMGb=stof(keyDescriptions[getKeyIdx("Memory limit on RAM")][DEFAULT_VALUE]);
     limitMemGPUGb=stof(keyDescriptions[getKeyIdx("Memory limit on GPU")][DEFAULT_VALUE]);
+    errType=keyDescriptions[getKeyIdx("Error saved")][DEFAULT_VALUE];
     useOracle=false;
     verbose=false;
     oraclePErr=0.01;

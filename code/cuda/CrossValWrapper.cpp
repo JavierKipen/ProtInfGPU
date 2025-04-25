@@ -13,6 +13,7 @@ CrossValWrapper::CrossValWrapper()
     oraclePErr=0;
     loadedData=false;
     exportFinalEsts=true;
+    errType="PY";
 }
 CrossValWrapper::~CrossValWrapper()
 {
@@ -297,6 +298,7 @@ string CrossValWrapper::genRunConfigMsg()
     out+= "NReadsInRam: "+ to_string(FSI.nReadsPartialScores) + "\n";    
     out+= "Oracle: "+ to_string(oracle) + "\n"; 
     out+= "Oracle Perr: "+ to_string(oraclePErr) + "\n"; 
+    out+= "Error measured: "+ errType + "\n"; 
     
     return out;
 }
@@ -336,6 +338,20 @@ vector<float> CrossValWrapper::PItoPY(vector<float> pI)
     return pY;
     
 }
+vector<float> CrossValWrapper::PYtoPI(vector<float> pY)
+{
+    vector<float> pI(FSI.datasetMetadata.nProt,0); //Here we will store the estimated PY for each PI
+    float normVal=0;
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+    {
+        pI[j]= pY[j] * FSI.datasetMetadata.expNFluExpGenByI[j]; //Weights of each protein
+        normVal+=pI[j];
+    }
+    for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        pI[j]/=normVal; //Normalizes pY
+    return pI;
+    
+}
 void CrossValWrapper::calcError(unsigned int epoch)
 {
     
@@ -343,11 +359,25 @@ void CrossValWrapper::calcError(unsigned int epoch)
     vector<float> MAE(FSI.nCrossVal,0); //Here we will store the error for each cross val dataset.
     for(unsigned int i=0;i<FSI.nCrossVal;i++)   //For every crossval run!
     {
-        vector<float> auxPY=PItoPY(pIEsts[i]); //Converts PI to PY
-        float absAccErr=0;
-        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
-            absAccErr += std::abs(auxPY[j]-FSI.cvTrueProtDist[i][j]);
-        MAE[i] = absAccErr / FSI.datasetMetadata.nProt; //The MAE of the run will be the accumulated absolute error, divided by the number of proteins
+        if(errType=="PY")
+        {
+            vector<float> auxPY=PItoPY(pIEsts[i]); 
+            float absAccErr=0;
+            for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+                absAccErr += std::abs(auxPY[j]-FSI.cvTrueProtDist[i][j]);
+            MAE[i] = absAccErr / FSI.datasetMetadata.nProt; //The MAE of the run will be the accumulated absolute error, divided by the number of proteins
+        }
+        else if(errType=="PI")
+        {
+            
+            float absAccErr=0;
+            vector<float> auxPI=PYtoPI(FSI.cvTrueProtDist[i]); 
+            for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+                absAccErr += std::abs(auxPI[j]-pIEsts[i][j]);
+                
+            MAE[i] = absAccErr / FSI.datasetMetadata.nProt; //The MAE of the run will be the accumulated absolute error, divided by the number of proteins
+        }
+        
     }
     
     double sum = std::accumulate(MAE.begin(), MAE.end(), 0.0); //https://stackoverflow.com/questions/7616511/calculate-mean-and-standard-deviation-from-a-vector-of-samples-in-c-using-boos

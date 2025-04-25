@@ -44,7 +44,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         vector<vector<float>> updates; //updates to then change P_I_Ests.
         vector<float> ErrMean,ErrStd; //Stores the mean and std of the error measurement used.
     
-        string inputFolderPath,outFolderPath,experimentFolder;
+        string inputFolderPath,outFolderPath,experimentFolder,errType;
         GPUWrapper gW;
         float limitMemGPUGb;
         DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
@@ -70,6 +70,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         vector<unsigned int> topNFluExpScoresIds; 
         void exportEsts(); //Exports the final estimations of distributions. 
         vector<float> PItoPY(vector<float> pI);
+        vector<float> PYtoPI(vector<float> pY);
     
         vector<unsigned int> idToCvScoreIdsStart,idToCvScoreIdsEnd; //For the loaded batch of the scores dataset on RAM, these vectores point to the beg and end of the scores that are valid
         vector<vector<unsigned int>> cvScoreIdsVecOfVec; //Used to partition the scoreIds of the crossval into vectors of size maxReadsToProcessInGpu, to send to gpu
