@@ -42,15 +42,16 @@ class DatasetExporterWhatprot():
             n_sparsity.astype(np.uint32).tofile(self.out_folder+"/Common/nSparsity.bin")
         
         oracle_subfolder=self.out_folder+"/Oracle"
+        self.classifier_folder=oracle_subfolder;
         if not os.path.exists(oracle_subfolder): #Creates oracle subf if it doesnt exist!
             os.makedirs(oracle_subfolder)    
         self.gen_cv_data(oracle_subfolder,n_samples=n_samples_cv);
         
-    def export_classifier(self,classifier_name,n_samples_per_flu=100,n_samples_cv=5e5):
+    def export_classifier(self,classifier_name,n_samples_per_flu=100,n_samples_cv=5e5,n_sparsity_default=1000):
         self.save_dataset_common_vars()
         
         classifier_folder=self.out_folder+"/"+classifier_name;
-        
+        self.classifier_folder=classifier_folder;
         if not os.path.exists(classifier_folder): #Creates oracle subf if it doesnt exist!
             os.makedirs(classifier_folder)
         
@@ -58,9 +59,9 @@ class DatasetExporterWhatprot():
         true_ids=np.repeat(np.arange(0, self.n_exp_flus), n_samples_per_flu);
         true_ids.astype(np.uint32).tofile(classifier_folder+"/Common/trueIds.bin")
         
-        if not os.path.exists(classifier_folder+"/Common/nSparsity.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
-            n_sparsity=np.asarray(1000);
-            n_sparsity.astype(np.uint32).tofile(classifier_folder+"/Common/nSparsity.bin")
+        #if not os.path.exists(classifier_folder+"/Common/nSparsity.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
+        n_sparsity=np.asarray(n_sparsity_default);
+        n_sparsity.astype(np.uint32).tofile(classifier_folder+"/Common/nSparsity.bin")
         
             
         self.gen_cv_data(classifier_folder,n_samples=n_samples_cv);
@@ -135,7 +136,7 @@ class DatasetExporterWhatprot():
         return p_flu_exp
     
     def sample_score_ids(self,curr_p_flu_exp,n_samples=5e5):
-        true_ids=np.fromfile(self.out_folder+"/Common/trueIds.bin", dtype=np.uint32);
+        true_ids=np.fromfile(self.classifier_folder+"/Common/trueIds.bin", dtype=np.uint32);
         u_true_ids, idx_start_u_true_ids= np.unique(true_ids, return_index=True) #We generate the outputs to be contiguous with the same class
         n_samples_per_flu=idx_start_u_true_ids[1]-idx_start_u_true_ids[0];
         true_ids_w_dist = np.random.choice(self.n_exp_flus, size=int(n_samples), p=curr_p_flu_exp).astype(np.uint32)
