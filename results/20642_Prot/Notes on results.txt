@@ -1,0 +1,5 @@
+Oracle_dif errs has different runs with the oracle on the whole proteome with different errors
+Oracle_subsets has different amount of reads for each run.
+ProbeamBetterConfigW2 Runs probeam on the data and the oracle with same dataset. W2 means that there is 2 original samples of each flustring, that then are sampled accordingly. This is a smaller dataset, faster and gives an idea of W100 results.
+ProbeamW2 has the paper configs in terms of errors. Then also 2 samples per each and same crossval as the other, to compare the three of them.
+SparsityProbeamBetterConfigW2 shows different Nsparsity for the better probeam. Still with W2 for previsualization of the paper.

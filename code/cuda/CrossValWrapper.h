@@ -52,6 +52,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         float oraclePErr;
     private:
         void loadOracleScores(vector<unsigned int> &IdxsCv);
+        void copyLowerSparsity(unsigned long idOfFSIScores,unsigned long nRowInBuffer);
         void loadScoresInBuffer(vector<unsigned int> &IdxsCv); //Given the Indexes of the reads picked for the crossval, copies from the ram to the vector to send to GPU
         void updatePIs(); //Uses the update weights to update the PIs estimations!
         void partitionDataset(unsigned int cvIndex);

@@ -7,6 +7,10 @@
 #include <sstream>
 #include <fstream>
 
+
+vector<unsigned int> argsort(const vector<unsigned int>& vf);
+vector<unsigned int> argsortf(const vector<float>& vf);
+
 CrossValWrapper::CrossValWrapper()
 {
     oracle=false;
@@ -232,16 +236,53 @@ void CrossValWrapper::loadScoresInBuffer(vector<unsigned int> &IdxsCv)
     unsigned int len=IdxsCv.size(); //Has to be lower or eq than the buffer length!
     for(unsigned int i=0;i<len;i++)
     {
-        unsigned int currId=IdxsCv[i]; //Score Id that will be copied
-        for(unsigned int j=0;j<nSparsityRed;j++) //We copy nSparsityRed from the 
+        unsigned long currId=IdxsCv[i]; 
+        if(nSparsityRed == FSI.datasetMetadata.nSparsity) //When sparsity is the same
         {
-            unsigned long idxInPFSI=currId*FSI.datasetMetadata.nSparsity+j; //In pFSI the array has metadata.nSparsity columns, while the array to send to gpu has this->nSparsityRed columns
-            unsigned long idxInBuffer=i*nSparsityRed+j;
-            topNFluExpScores[idxInBuffer] = FSI.TopNScoresPartialFlattened[idxInPFSI];
-            topNFluExpScoresIds[idxInBuffer] = FSI.TopNScoresIdsPartialFlattened[idxInPFSI];
+            for(unsigned int j=0;j<nSparsityRed;j++)  //We copy all the data, no further processing
+            {
+                unsigned long idxInPFSI=currId*FSI.datasetMetadata.nSparsity+j; //In pFSI the array has metadata.nSparsity columns, while the array to send to gpu has this->nSparsityRed columns
+                unsigned long idxInBuffer=i*nSparsityRed+j;
+                topNFluExpScores[idxInBuffer] = FSI.TopNScoresPartialFlattened[idxInPFSI];
+                topNFluExpScoresIds[idxInBuffer] = FSI.TopNScoresIdsPartialFlattened[idxInPFSI];
+            }
+        }
+        else //When we use a subset of sparsity, we need to reorder the probabilities, take the N best, and then order in terms of index!
+        {
+            copyLowerSparsity(currId*FSI.datasetMetadata.nSparsity,i);
         }
     }
 }
+
+void CrossValWrapper::copyLowerSparsity(unsigned long idOfFSIScores,unsigned long nRowInBuffer)
+{
+    vector<float> auxScoreProbs(FSI.datasetMetadata.nSparsity);
+    vector<float> auxScoreProbs2(nSparsityRed,0);
+    vector<unsigned int> auxScoreIds(FSI.datasetMetadata.nSparsity);
+    vector<unsigned int> auxScoreIds2(nSparsityRed,0);
+    //Copies the score probs and ID into an auxiliar variable
+    for (unsigned long currFSIScore = idOfFSIScores; currFSIScore < idOfFSIScores + FSI.datasetMetadata.nSparsity ; currFSIScore++) 
+	{
+		auxScoreProbs[currFSIScore-idOfFSIScores]=FSI.TopNScoresPartialFlattened[currFSIScore];
+		auxScoreIds[currFSIScore-idOfFSIScores]=FSI.TopNScoresIdsPartialFlattened[currFSIScore]; //Pushes from set to list!
+    }
+    vector<unsigned int> idxToSort=argsortf(auxScoreProbs); //Sorts the probabilities
+    //Copies into the second auxiliary ordered by probabilitis
+    for (unsigned int j = 0; j < nSparsityRed; j++)
+	{
+		auxScoreProbs2[j]= auxScoreProbs[idxToSort[j]];
+		auxScoreIds2[j] = auxScoreIds[idxToSort[j]];
+	}
+    idxToSort=argsort(auxScoreIds2); //Sorts by score number
+    //Copies into our computation buffer with the score IDs ordered!
+    for (unsigned int j = 0; j < nSparsityRed; j++)
+	{
+        unsigned long idxInBuffer=nRowInBuffer*nSparsityRed+j;
+		topNFluExpScores[idxInBuffer]= auxScoreProbs2[idxToSort[j]];
+		topNFluExpScoresIds[idxInBuffer] = auxScoreIds2[idxToSort[j]];
+	}
+}
+
 void CrossValWrapper::updatePIs()
 {
     unsigned int nProt=FSI.datasetMetadata.nProt;
@@ -401,4 +442,25 @@ void CrossValWrapper::setNSparsity(unsigned int nSparsityRed)
         this->nSparsityRed=nSparsityRed;
     else
         cout << "Sparsity specified cannot be lower than the datasets one!" << endl;
+}
+
+
+//Useful functions
+
+vector<unsigned int> argsortf(const vector<float>& vf) { //Argsort for a float vector. based on https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
+	vector<unsigned int> idx(vf.size());// initialize original index locations
+	iota(idx.begin(), idx.end(), 0);
+	stable_sort(idx.begin(), idx.end(),
+		[&vf](unsigned int i1, unsigned int i2) {return vf[i1] > vf[i2]; });
+	return idx;
+}
+
+
+vector<unsigned int> argsort(const vector<unsigned int>& vf)
+{
+	vector<unsigned int> idx(vf.size());// initialize original index locations
+	iota(idx.begin(), idx.end(), 0);
+	stable_sort(idx.begin(), idx.end(),
+		[&vf](unsigned int i1, unsigned int i2) {return vf[i1] < vf[i2]; });
+	return idx;
 }

@@ -10,3 +10,6 @@ Example run:
 ./opt.out /home/jkipen/raid_storage/ProtInfGPU/data/20660_Prot/binary/Oracle /home/jkipen/ProtInfGPU/results/20660_Prot/Oracle_opt -d 3 -e 30 -c 1 -m 50 -M 30 -s 100000 -t 512 -o 0
 
 ./opt.out /home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot/binary/ProbeamBetterConfig /home/jkipen/ProtInfGPU/results/20642_Prot/Tests -d 0 -e 3 -c 1 -m 120 -M 30 -t 1024 -n 1000
+
+
+cuda-gdb --args ./a.out /home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot/binary/ProbeamBetterConfig /home/jkipen/ProtInfGPU/results/20642_Prot/Tests -d 0 -e 3 -c 1 -m 120 -M 30 -n 5 -t 1024 
