@@ -100,12 +100,17 @@ class WrapperEMCrossValv3:
             cols.extend(idx)
             ptr.append(ptr[-1] + self.n_sparsity)
     
-        PFo_given_X_sparse = csr_matrix((np.array(data), np.array(cols), np.array(ptr)), shape=(self.n_reads, self.PIEM.n_exp_flus))
+        PFo_given_X_sparse = csr_matrix((np.array(data), np.array(cols), np.array(ptr)), shape=(len(self.Idxs_cv[index_crossval]), self.PIEM.n_exp_flus))
         R = (1.0 - np.array(PFo_given_X_sparse.sum(axis=1)).ravel())/self.PIEM.n_exp_flus;
         
         return PFo_given_X_sparse,R;
     
     
 if __name__ == "__main__":
-    WEMV=WrapperEMCrossValv3("C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot/",oracle=False)
+    import matplotlib.pyplot as plt 
+    WEMV=WrapperEMCrossValv3("C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot/",n_sparsity=25,n_crossval=2)
     WEMV.compute_cv()
+    plt.plot(np.mean(WEMV.errs,axis=0))
+    plt.yscale('log')
+    plt.show()
+    print("Computing time was " + str(WEMV.compute_time))

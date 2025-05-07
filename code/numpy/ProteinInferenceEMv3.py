@@ -26,7 +26,7 @@ class ProteinInferenceEMv3:
         t_start = time.time()
         self.Etas= PFo_given_X @ self.PFgI.T
         if not (R is None):
-            self.Etas = self.Etas + R;
+            self.Etas = self.Etas + np.tile(R[:, None], self.n_prot);
         self.t_eta = time.time()-t_start
         return self.Etas;
     
