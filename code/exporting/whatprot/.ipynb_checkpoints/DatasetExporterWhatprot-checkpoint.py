@@ -30,7 +30,7 @@ class DatasetExporterWhatprot():
         self.fluExpIdForI.tofile(common_subfolder+"fluExpIdForI.bin")
         self.expNFluExpGenByI.tofile(common_subfolder+"expNFluExpGenByI.bin")
         
-    def export_oracle(self,n_samples_per_flu=1000,n_samples_cv=5e5):
+    def export_oracle(self,n_samples_per_flu=1000,n_samples_cv=10e6):
         self.save_dataset_common_vars()
         
         if not os.path.exists(self.out_folder+"/Common/trueIds.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
@@ -82,13 +82,12 @@ class DatasetExporterWhatprot():
     ##Internal functions
     def parse_df(self):
         self.n_prot = np.max(self.df["Original Protein Id"].values)+1; 
-        n_flustr = np.max(self.df["Flustring Id"].values)+1; 
-        self.n_exp_flus = n_flustr-1;#No +1 because of the null flustring
+        self.n_exp_flus = np.max(self.df["Flustring Id"].values)+1; 
         
         df_one_row_per_flu = self.df.groupby("Flustring Id").first().reset_index() #1 row per flustring!
         df_one_row_per_flu["Flustring"]=df_one_row_per_flu["Flustring"].apply(lambda x: "" if x is None else x) #Replaces None by an empty str.
-        flu_n_dyes=df_one_row_per_flu["Flustring"].apply(lambda x: sum(c.isdigit() for c in x)).to_numpy()
-        flu_exp_n_dyes=flu_n_dyes[1:];
+        flu_exp_n_dyes=df_one_row_per_flu["Flustring"].apply(lambda x: sum(c.isdigit() for c in x)).to_numpy()
+
         
         self.p_flu_exp_is_obs = np.array([(1 - self.p_miss**i) for i in flu_exp_n_dyes]);
         
@@ -97,19 +96,19 @@ class DatasetExporterWhatprot():
         self.flu_exp_count_per_prot=np.zeros(self.n_prot)
         
         for prot_iz in range(self.n_prot):
-          if prot_iz==1:
-              print("Debug")
-          df_prot = self.df[self.df["Original Protein Id"] == prot_iz]  
-          flu_exp_for_prot_i = np.asarray([i - 1 for i in df_prot["Flustring Id"].values if i != 0])  # here indexes of flus -1 because we dont count null flu.
-          u, indices = np.unique(flu_exp_for_prot_i, return_index=True) #We see the unique values
-          self.list_flu_exp_iz_per_I.append(u)# Appends the flu exps generalated by the protein i
-          auxCountList = [] ##Stores the expected number of each flustring per protein 
-          for curr_flu_exp in u:
-              n_flu_exp = len(np.argwhere(flu_exp_for_prot_i == curr_flu_exp)[:, 0])
-              auxCountList.append(n_flu_exp * self.p_flu_exp_is_obs[curr_flu_exp])
-              
-          self.flu_exp_count_per_prot[prot_iz] = np.sum(auxCountList) # Expected flu exp per protein
-          self.list_p_flu_exp_per_I.append(np.asarray(auxCountList) / self.flu_exp_count_per_prot[prot_iz]) #Normalizes probs!
+            if prot_iz==1:
+                print("Debug")
+            df_prot = self.df[self.df["Original Protein Id"] == prot_iz]  
+            flu_exp_for_prot_i = df_prot["Flustring Id"].values 
+            u, indices = np.unique(flu_exp_for_prot_i, return_index=True) #We see the unique values
+            self.list_flu_exp_iz_per_I.append(u)# Appends the flu exps generalated by the protein i
+            auxCountList = [] ##Stores the expected number of each flustring per protein 
+            for curr_flu_exp in u:
+                n_flu_exp = len(np.argwhere(flu_exp_for_prot_i == curr_flu_exp)[:, 0])
+                auxCountList.append(n_flu_exp * self.p_flu_exp_is_obs[curr_flu_exp])
+                
+            self.flu_exp_count_per_prot[prot_iz] = np.sum(auxCountList) # Expected flu exp per protein
+            self.list_p_flu_exp_per_I.append(np.asarray(auxCountList) / self.flu_exp_count_per_prot[prot_iz]) #Normalizes probs!
 
     
     def gen_vars_for_binary_export(self):#Variables for the binary export
@@ -142,13 +141,13 @@ class DatasetExporterWhatprot():
         true_ids_w_dist = np.random.choice(self.n_exp_flus, size=int(n_samples), p=curr_p_flu_exp).astype(np.uint32)
         true_ids_w_dist.sort(); ##Sort so we know they are in order.
         unique_flus, idx_start_unique_flus = np.unique(true_ids_w_dist, return_index=True) #We generate the outputs to be contiguous with the same class
-        score_ids=(-1)*np.ones(int(n_samples),dtype=np.int32)+self.n_exp_flus; ##If one value still is negative is an error 
+        score_ids=(-1)*np.ones(int(n_samples),dtype=np.int32); ##If one value still is negative is an error 
         
         for idx,u_flu in enumerate(unique_flus):
             if idx < len(unique_flus)-1: #While its not the last u_flue
                 occ_of_flu = np.arange(idx_start_unique_flus[idx],idx_start_unique_flus[idx+1])
             else:
-                occ_of_flu = np.arange(idx_start_unique_flus[idx],len(unique_flus))
+                occ_of_flu = np.arange(idx_start_unique_flus[idx],len(true_ids_w_dist))
             true_id_start=idx_start_u_true_ids[np.argwhere(u_true_ids == u_flu)[0][0]];
             same_id_scores=np.arange(true_id_start,true_id_start+n_samples_per_flu);
             score_ids[occ_of_flu] = np.random.choice(same_id_scores, len(occ_of_flu))  # (j+1) cause it is real flu.Picks len(idxs_flu) random scores for the flu j.
@@ -159,7 +158,10 @@ class DatasetExporterWhatprot():
 if __name__ == "__main__":
     n_proteins=20642;
     path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
-    exp_csv_path=path_datasets+"/binary/ProbeamBetterConfig/ExpTable.csv"
-    classifier_name="ProbeamBetterConfig";
-    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.0007);
-    DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=2);
+    #path_datasets="C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot"
+    exp_csv_path=path_datasets+"/binary/ProbeamBetterConfigW100/ExpTable.csv"
+    #exp_csv_path="C:/Users/JK-WORK/Downloads/ExpTable.csv"
+    classifier_name="ProbeamW100";
+    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.07);
+    #DEW.export_oracle()
+    DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=100);

@@ -157,11 +157,11 @@ class DatasetExporterWhatprot():
         
 if __name__ == "__main__":
     n_proteins=20642;
-    #path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
-    path_datasets="C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot"
-    #exp_csv_path=path_datasets+"/binary/ProbeamBetterConfig/ExpTable.csv"
-    exp_csv_path="C:/Users/JK-WORK/Downloads/ExpTable.csv"
-    classifier_name="ProbeamBetterConfig";
-    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=2,p_miss=0.07);
-    DEW.export_oracle()
-    #DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=2);
+    path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
+    #path_datasets="C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot"
+    exp_csv_path=path_datasets+"/binary/ProbeamBetterConfigW100/ExpTable.csv"
+    #exp_csv_path="C:/Users/JK-WORK/Downloads/ExpTable.csv"
+    classifier_name="ProbeamW100";
+    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.07);
+    #DEW.export_oracle()
+    DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=100);
