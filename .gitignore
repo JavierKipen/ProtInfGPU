@@ -2,3 +2,4 @@ dev/LoadHDF5Test/*
 code/cuda/a.out
 code/cuda/opt.out
 ext/*
+*.png
