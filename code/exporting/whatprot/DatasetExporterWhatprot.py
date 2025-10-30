@@ -55,6 +55,9 @@ class DatasetExporterWhatprot():
         if not os.path.exists(classifier_folder): #Creates oracle subf if it doesnt exist!
             os.makedirs(classifier_folder)
         
+        if not os.path.exists(classifier_folder+"/Common"): #Creates common subf if it doesnt exist!
+            os.makedirs(classifier_folder+"/Common")  
+            
        # if not os.path.exists(self.out_folder+"/Common/trueIds.bin"): ##Generates trueIds if they didnt exists (doesnt overwrite others)
         true_ids=np.repeat(np.arange(0, self.n_exp_flus), n_samples_per_flu);
         true_ids.astype(np.uint32).tofile(classifier_folder+"/Common/trueIds.bin")
@@ -157,11 +160,29 @@ class DatasetExporterWhatprot():
         
 if __name__ == "__main__":
     n_proteins=20642;
-    path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
-    #path_datasets="C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot"
-    exp_csv_path=path_datasets+"/binary/ProbeamBetterConfigW100/ExpTable.csv"
-    #exp_csv_path="C:/Users/JK-WORK/Downloads/ExpTable.csv"
-    classifier_name="ProbeamW100";
-    DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.07);
-    #DEW.export_oracle()
-    DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=100);
+    #path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/20642_Prot";
+    ##path_datasets="C:/Users/JK-WORK/Desktop/DatasetsProtInf/5_Prot"
+    #exp_csv_path=path_datasets+"/binary/ProbeamBetterConfigW100/ExpTable.csv"
+    ##exp_csv_path="C:/Users/JK-WORK/Downloads/ExpTable.csv"
+    #classifier_name="ProbeamW100";
+    #DEW=DatasetExporterWhatprot(exp_csv_path,path_datasets,n_cross_val=10,p_miss=0.07);
+    ##DEW.export_oracle()
+    #DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=100);
+    
+    #To handle the review:
+    
+    path_datasets="/home/jkipen/raid_storage/ProtInfGPU/data/Reviews/ErrRates/";
+    exp_csv_path=path_datasets+"ExpTable.csv";
+    divs_paths=[ path_datasets+"Div2", path_datasets+"Div5", path_datasets+"Div10" ];
+    divs=[2.0,5.0,10.0]
+    
+    for div_index in range(3):
+        div_path=divs_paths[div_index]
+        div=divs[div_index]
+        classifier_name="ProbeamW2";
+        DEW=DatasetExporterWhatprot(exp_csv_path,div_path,n_cross_val=10,p_miss=0.07/div);
+        DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=2);
+        classifier_name="ProbeamW100";
+        DEW=DatasetExporterWhatprot(exp_csv_path,div_path,n_cross_val=10,p_miss=0.07/div);
+        DEW.export_classifier(classifier_name,n_samples_cv=10e6,n_samples_per_flu=100);
+    
