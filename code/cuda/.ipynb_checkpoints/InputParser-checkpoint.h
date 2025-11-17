@@ -50,7 +50,7 @@ class InputParser{  //Class to handle the data movement (later would be also bin
     
         string inputDir,outputDir,errType; //Directories.
         unsigned int nEpochs,nCrossValDs,nTreadsPerBlock,nSparsity,deviceN,nSubsetCV;
-        bool useOracle,verbose;
+        bool useOracle,verbose,initRandomPY;
         float oraclePErr,limitRAMGb,limitMemGPUGb;
     
     private:

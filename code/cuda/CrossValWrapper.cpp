@@ -6,7 +6,12 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
+#include <random>
+#include <vector>
 
+#define DEFAULT_LAMBDA_RANDOM_PY 1
+
+using namespace std;
 
 vector<unsigned int> argsort(const vector<unsigned int>& vf);
 vector<unsigned int> argsortf(const vector<float>& vf);
@@ -17,6 +22,7 @@ CrossValWrapper::CrossValWrapper()
     oraclePErr=0;
     loadedData=false;
     exportFinalEsts=true;
+    initRandomPY=false;
     errType="PY";
 }
 CrossValWrapper::~CrossValWrapper()
@@ -74,6 +80,65 @@ void CrossValWrapper::init() //This init assumes that some variables have alread
      //CM.memAlloc(maxReadsToProcessInGpu); //Allocates the memory to process this amount of reads.
     topNFluExpScores.resize(maxReadsToProcessInGpu*nSparsityRed,0);topNFluExpScoresIds.resize(maxReadsToProcessInGpu*nSparsityRed,0);
     
+    if(initRandomPY)
+        setRandomPYHat();
+    else
+        setUniformPYHat();
+    
+    
+}
+
+void CrossValWrapper::setRandomPYHat() //Initializes PYHat as norm sum of exp distributed!
+{
+    
+    static mt19937 rng(std::random_device{}());
+    exponential_distribution<double> dist(DEFAULT_LAMBDA_RANDOM_PY);
+    vector<vector<float>> pYEsts; //To store the random PYs
+    
+    for(unsigned int i=0;i<FSI.nCrossVal;i++) // Generates random PYs
+    {
+        float normDist=0;
+        vector<float> aux(FSI.datasetMetadata.nProt,0); //Zero valued PY, will fill with exp.
+        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        {   
+            float sampleExp=dist(rng); //Sample exponentialDist
+            aux[j]=sampleExp;
+            normDist+=sampleExp;
+            if(j<3 && i==0) //Just to be sure we are generating random ones.
+                cout << aux[j];
+        }
+        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+            aux[j]=(aux[j]/normDist);
+        pYEsts.push_back(aux);
+    }
+    
+    for(unsigned int i=0;i<FSI.nCrossVal;i++) // Converts PYs to PIs
+    {
+        float norm=0;
+        vector<float> currPY=pYEsts[i];
+        vector<float> aux(FSI.datasetMetadata.nProt,0); //Zero valued PY, will fill with exp.
+        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+        {   
+            float currPiUnnorm=FSI.datasetMetadata.expNFluExpGenByI[j]*currPY[j]; //Sample exponentialDist
+            aux[j]=currPiUnnorm;
+            norm+=currPiUnnorm;
+        }
+        for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
+            aux[j]=(aux[j]/norm);
+        
+        pIEsts.push_back(aux); //equally likely proteins assumption!
+    }
+        
+    
+    for(unsigned int i=0;i<FSI.nCrossVal;i++)
+    {   
+        vector<float> aux(FSI.datasetMetadata.nProt,0);
+        updates.push_back(aux); //set to zero
+    }
+}
+
+void CrossValWrapper::setUniformPYHat() //Initializes PYHat as uniform distribution!
+{
     float norm=0;
     for(unsigned int j=0;j<FSI.datasetMetadata.nProt;j++)
         norm+=FSI.datasetMetadata.expNFluExpGenByI[j];
@@ -86,8 +151,9 @@ void CrossValWrapper::init() //This init assumes that some variables have alread
         updates.push_back(aux);
         pIEsts.push_back(auxPI); //equally likely proteins assumption!
     }
-    
 }
+
+
 void CrossValWrapper::setGPUMemLimit(float nGb)
 {
     nBytesToUseGPU=nGb*pow(2,30);

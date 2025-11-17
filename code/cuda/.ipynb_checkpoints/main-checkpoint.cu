@@ -33,6 +33,7 @@ void setConfigurations(InputParser& IP, CrossValWrapper& CVW)
     CVW.deviceN=IP.deviceN;
     CVW.oraclePErr=IP.oraclePErr;
     CVW.errType=IP.errType;
+    CVW.initRandomPY=IP.initRandomPY;
     if(IP.nSubsetCV>0)
     {
         CVW.FSI.useSubsetCV=true;

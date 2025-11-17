@@ -33,6 +33,8 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         void computeEMCrossValEpochOracle();
         void exportResults();
         string genRunConfigMsg();
+        void setRandomPYHat();
+        void setUniformPYHat();
         
 
     
@@ -48,7 +50,7 @@ class CrossValWrapper {  //Class to wrap both the filesystem dataset pulling, cr
         GPUWrapper gW;
         float limitMemGPUGb;
         DatasetMetadata modifDatasetMetadataForGPU; //Modified metadata to use in GPU (Nsparsity reduced instead of datasets Nsparsity).
-        bool oracle,loadedData,exportFinalEsts;
+        bool oracle,loadedData,exportFinalEsts,initRandomPY;
         float oraclePErr;
     private:
         void loadOracleScores(vector<unsigned int> &IdxsCv);

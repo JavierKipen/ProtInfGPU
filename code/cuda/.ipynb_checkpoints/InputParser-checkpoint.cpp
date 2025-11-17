@@ -73,6 +73,8 @@ bool InputParser::parseOptWithValue(unsigned int *pKeyIndex,unsigned int argc, c
             errType=valueStr;
         if(currKey=="-s")
             nSubsetCV=atoi(valueStr.c_str());
+        if(currKey=="-i")
+            initRandomPY=true; //Mentioning will make it go to one already.
         (*pKeyIndex)++; //Advances to the next key
     }
     return retVal;
@@ -100,6 +102,7 @@ void InputParser::init()
                       {"-d",         "GPU Device"     ,    "0"      },
                       {"-s","Subset samples cross validation" ,    "0"      }, //Reduces the amount of samples of each cv, so it can run faster. 0 means no reduction
                       {"-v",         "Verbose"       ,     "No"      }, //No value, using the key will make the code verbose.
+                      {"-i",     "Init random"       ,     "0"      }, //Initializes with random PYHat
                       {"-t","Number of threads per block", "128"      }});
     
     keyDescriptions=aux;
@@ -116,6 +119,8 @@ void InputParser::init()
     limitRAMGb=stof(keyDescriptions[getKeyIdx("Memory limit on RAM")][DEFAULT_VALUE]);
     limitMemGPUGb=stof(keyDescriptions[getKeyIdx("Memory limit on GPU")][DEFAULT_VALUE]);
     errType=keyDescriptions[getKeyIdx("Error saved")][DEFAULT_VALUE];
+    nEpochs=atoi(keyDescriptions[getKeyIdx("Number of epochs")][DEFAULT_VALUE].c_str());
+    initRandomPY=false;
     useOracle=false;
     verbose=false;
     oraclePErr=0.01;
